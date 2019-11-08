@@ -31,6 +31,10 @@ data class Setting(
         val startHour: Int? = null,
         val lastStarted: Long = 0)
 
+data class MemStats(
+        val memLimit: Int = 0,
+        val memUsed: Int = 0)
+
 operator fun Regex.contains(text: CharSequence): Boolean = matches(text)
 private fun toGigs(value: String?) = when (value) {
     null -> 0
@@ -196,18 +200,31 @@ class K8sBackend(val client: KubernetesClient) : Backend {
         settings = settings.plus(ns to Setting(startHour, lastStarted.toEpochSecond() * 1000))
     }
 
-    private fun init(namespace: String): ResourceQuota? = try {
+    private fun initLimitRange(namespace: String) = try {
         val lrb = LimitRangeBuilder()
+                .withNewMetadata().withName("reaperlimit").endMetadata()
                 .withNewSpec().addNewLimit()
                 .withDefault(mapOf("memory" to Quantity("512Mi")))
                 .withDefaultRequest(mapOf("memory" to Quantity("512Mi")))
                 .withType("Container")
                 .endLimit().endSpec().build()
         client.limitRanges().inNamespace(namespace).withName("reaperlimit").createOrReplace(lrb)
-        createResourceQuota(namespace, "reaper-up", 10)
     } catch (e: Exception) {
         log.error(e) { "Unable to create limit range in $namespace" }
         null
+    }
+
+    /**
+     * Check that the given namespace has limit range and resource quota defined,
+     * then return the current memory stats.
+     */
+    private fun check(namespace: String): MemStats {
+        client.limitRanges().inNamespace(namespace).withName("reaperlimit").get()
+                ?: initLimitRange(namespace)
+        val rq = getResourceQuota(namespace, "reaper-up")
+                ?: createResourceQuota(namespace, "reaper-up", 10)
+        return MemStats(toGigs(rq?.spec?.hard?.get(LIMITS_MEMORY)?.amount),
+                toGigs(rq?.status?.used?.get(LIMITS_MEMORY)?.amount))
     }
 
     @Synchronized
@@ -222,13 +239,12 @@ class K8sBackend(val client: KubernetesClient) : Backend {
     @Synchronized
     override fun getStatus(): Status {
         return Status(getNamespaces().map { ns ->
-            val rq = getResourceQuota(ns, "reaper-up")
-                    ?: init(ns)
+            val stats = check(ns)
             NamespaceStatus(
                     ns,
                     isUp(ns),
-                    toGigs(rq?.status?.used?.get(LIMITS_MEMORY)?.amount),
-                    toGigs(rq?.spec?.hard?.get(LIMITS_MEMORY)?.amount),
+                    stats.memUsed,
+                    stats.memLimit,
                     settings[ns]?.startHour,
                     (settings[ns]?.lastStarted ?: 0L) + (8 * 60 * 60 * 1000)
             )

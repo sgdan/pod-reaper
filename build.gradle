@@ -1,0 +1,77 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "1.3.50"
+    id "org.jetbrains.kotlin.kapt" version "1.3.50"
+    id "org.jetbrains.kotlin.plugin.allopen" version "1.3.50"
+    id "com.github.johnrengelman.shadow" version "5.1.0"
+    id "application"
+}
+
+version "0.1-SNAPSHOT"
+group "org.sgdan"
+
+repositories {
+    mavenCentral()
+    maven { url "https://jcenter.bintray.com" }
+}
+
+configurations {
+    developmentOnly
+}
+
+dependencies {
+    implementation platform("io.micronaut:micronaut-bom:$micronautVersion")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}"
+    implementation "io.micronaut:micronaut-runtime"
+    implementation "io.swagger.core.v3:swagger-annotations"
+    implementation "io.micronaut:micronaut-http-server-netty"
+    implementation "io.micronaut:micronaut-http-client"
+    kapt platform("io.micronaut:micronaut-bom:$micronautVersion")
+    kapt "io.micronaut:micronaut-inject-java"
+    kapt "io.micronaut:micronaut-validation"
+    kapt "io.micronaut.configuration:micronaut-openapi"
+    kaptTest platform("io.micronaut:micronaut-bom:$micronautVersion")
+    kaptTest "io.micronaut:micronaut-inject-java"
+    runtimeOnly "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.8"
+    runtimeOnly "ch.qos.logback:logback-classic:1.2.3"
+
+    compile "io.github.microutils:kotlin-logging:1.7.6"
+    compile "io.fabric8:kubernetes-client:4.2.2"
+    testCompile "io.fabric8:kubernetes-server-mock:4.6.0"
+    testRuntimeOnly "junit:junit:4.12"
+    testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.5.2"
+    implementation "javax.xml.bind:jaxb-api:2.3.1"
+}
+
+test.classpath += configurations.developmentOnly
+
+mainClassName = "org.sgdan.podreaper.Application"
+
+test {
+    useJUnitPlatform()
+}
+
+allOpen {
+    annotation("io.micronaut.aop.Around")
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = '1.8'
+        javaParameters = true
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = '1.8'
+        javaParameters = true
+    }
+}
+
+shadowJar {
+    mergeServiceFiles()
+}
+
+run.classpath += configurations.developmentOnly
+run.jvmArgs('-noverify', '-XX:TieredStopAtLevel=1', '-Dcom.sun.management.jmxremote')

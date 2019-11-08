@@ -1,0 +1,23 @@
+micronaut:
+  router:
+    static-resources:
+      default:
+        enabled: true
+        paths: file:ui
+  server:
+    cors:
+      # only needed when doing front end dev on port 3000
+      enabled: ${CORS_ENABLED:true}
+      configurations:
+        all:
+          allowedOrigins:
+            - http://localhost:3000
+
+backend:
+  fake:
+    enabled: false
+  kubernetes:
+    enabled: true
+    zoneid: ${ZONE_ID:UTC}
+    # These namespaces will be ignored by the reaper
+    ignore: ${IGNORED_NAMESPACES:kube-system,kube-public,kube-node-lease,podreaper,docker}

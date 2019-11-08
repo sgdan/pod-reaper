@@ -1,0 +1,14 @@
+# Front end stuff (from create-elm-app)
+build
+elm-stuff
+repl-temp-*
+node_modules
+.DS_Store
+
+# Back end and build stuff
+.build
+.gradle
+gradle
+gradlew
+gradlew.bat
+.idea

@@ -44,12 +44,14 @@ spec:
       serviceAccountName: podreaper
       containers:
         - name: podreaper
-          image: podreaper:latest
-          imagePullPolicy: Never
+          image: sgdan/pod-reaper:latest
+          # for locally built image
+          # image: podreaper:latest
+          # imagePullPolicy: Never
           env:
             - name: ZONE_ID
               value: UTC
             - name: IGNORED_NAMESPACES
               value: kube-system,kube-public,kube-node-lease,podreaper,docker
             - name: CORS_ENABLED
-              value: false
+              value: "false"

@@ -50,14 +50,21 @@ create:
 	kubectl create ns ns1
 	kubectl create ns ns2
 	kubectl create ns ns3
-	kubectl create deployment test1 --image=nginx -n ns1
-	kubectl create deployment test2 --image=nginx -n ns2
-	kubectl create deployment test3 --image=nginx -n ns3
-	kubectl scale deployment test1 --replicas 8 -n ns1
-	kubectl scale deployment test2 --replicas 10 -n ns2
-	kubectl scale deployment test3 --replicas 12 -n ns3
+	kubectl apply -f nginx.yaml -n ns1
+	kubectl apply -f nginx.yaml -n ns2
+	kubectl apply -f nginx.yaml -n ns3
 
-reset:
+scale-up:
+	kubectl scale deployment test --replicas 4 -n ns1
+	kubectl scale deployment test --replicas 8 -n ns2
+	kubectl scale deployment test --replicas 12 -n ns3
+
+scale-down:
+	kubectl scale deployment test --replicas 0 -n ns1
+	kubectl scale deployment test --replicas 0 -n ns2
+	kubectl scale deployment test --replicas 0 -n ns3
+
+delete:
 	kubectl delete ns ns1 ns2 ns3
 
 # edit to manually change last started time for test purposes

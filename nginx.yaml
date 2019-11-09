@@ -1,0 +1,26 @@
+# Nginx deployment just for test purposes
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: test
+  name: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+        - image: nginx:1.17.5
+          name: nginx
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              memory: 128Mi

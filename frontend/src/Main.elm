@@ -41,7 +41,6 @@ type ServerState
 
 type alias Model =
     { state : ServerState
-    , time : Time.Posix
     , editLimit : Maybe String
     , editStart : Maybe String
     , url : String
@@ -54,18 +53,18 @@ type alias Flags =
 
 type alias Namespace =
     { name : String
-    , memLimit : Int
+    , hasDownQuota : Bool
+    , canExtend : Bool
     , memUsed : Int
-    , up : Bool
-    , stopTime : Maybe Int
-    , startHour : Maybe Int
-    , remaining : Maybe Int
+    , memLimit : Int
+    , autoStartHour : Maybe Int
+    , remaining : Maybe String
     }
 
 
 type alias Status =
-    { namespaces : List Namespace
-    , time : String
+    { clock : String
+    , namespaces : List Namespace
     }
 
 
@@ -131,7 +130,6 @@ setStart url namespace value =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { state = Loading
-      , time = Time.millisToPosix (1000 * 365 * 24 * 60 * 60 * 1000)
       , editLimit = Nothing
       , editStart = Nothing
       , url = flags.url
@@ -146,7 +144,6 @@ init flags =
 
 type Msg
     = GotUpdate (Result Http.Error String)
-    | Tick Time.Posix
     | GetUpdate Time.Posix
     | Extend String
     | EditLimit (Maybe String)
@@ -165,9 +162,6 @@ update msg model =
 
                 Err _ ->
                     ( { model | state = LoadFailed }, Cmd.none )
-
-        Tick newTime ->
-            ( { model | time = newTime }, Cmd.none )
 
         GetUpdate newTime ->
             ( model, loadState model.url )
@@ -194,10 +188,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Time.every 2000 Tick
-        , Time.every 5000 GetUpdate
-        ]
+    Time.every 5000 GetUpdate
 
 
 nsRow : Namespace -> Element msg
@@ -244,15 +235,15 @@ headerAttr =
     [ Font.size 20, Font.color blue ]
 
 
-nsTable : List Namespace -> Model -> Element Msg
-nsTable namespaces model =
+nsTable : Status -> Model -> Element Msg
+nsTable status model =
     table
         [ spacing 10
         , padding 10
         , Font.alignRight
         , Font.size 18
         ]
-        { data = namespaces
+        { data = status.namespaces
         , columns =
             [ { header = el (Font.alignLeft :: headerAttr) <| text "Namespace"
               , width = fillPortion 3
@@ -306,10 +297,10 @@ showStart model ns =
         ]
     <|
         if editing model.editStart ns.name then
-            startEditor ns.name ns.startHour
+            startEditor ns.name ns.autoStartHour
 
         else
-            text <| startString ns.startHour
+            text <| startString ns.autoStartHour
 
 
 decAutostart : Maybe Int -> Maybe Int
@@ -454,13 +445,13 @@ formatRemaining millis =
 
 getColor : Namespace -> Attribute msg
 getColor ns =
-    if not ns.up && ns.memUsed > 0 then
+    if ns.hasDownQuota && ns.memUsed > 0 then
         Font.color red
 
     else if ns.memUsed > ns.memLimit then
         Font.color red
 
-    else if ns.up then
+    else if not ns.hasDownQuota then
         Font.color green
 
     else
@@ -474,34 +465,21 @@ showRemaining ns =
             none
 
         Just x ->
-            if x <= 0 then
-                none
-
-            else
-                el [ Font.alignRight, getColor ns ] <| text <| formatRemaining x
+            el [ Font.alignRight, getColor ns ] <| text x
 
 
 extendButton : Namespace -> Element Msg
 extendButton ns =
-    let
-        extButton =
-            Input.button
-                [ alignRight
-                , Border.width 0
-                , Border.rounded 3
-                ]
-                { onPress = Just <| Extend ns.name, label = text ">" }
-    in
-    case ns.remaining of
-        Nothing ->
-            extButton
+    if ns.canExtend then
+        Input.button
+            [ alignRight
+            , Border.width 0
+            , Border.rounded 3
+            ]
+            { onPress = Just <| Extend ns.name, label = text ">" }
 
-        Just millis ->
-            if millis // 1000 // 60 // 60 < 7 then
-                extButton
-
-            else
-                none
+    else
+        none
 
 
 errorPage : String -> Element Msg
@@ -510,28 +488,11 @@ errorPage message =
 
 
 title : String -> Element Msg
-title now =
+title clock =
     row [ width fill ]
         [ el [ Font.size 40 ] <| text "Pod Reaper"
-        , el [ Font.size 14, Font.alignRight, width fill ] <| text now
+        , el [ Font.size 14, Font.alignRight, width fill ] <| text clock
         ]
-
-
-millisRemaining : Int -> Maybe Int -> Maybe Int
-millisRemaining now stopTime =
-    case stopTime of
-        Nothing ->
-            Nothing
-
-        Just x ->
-            Just (x - now)
-
-
-calcRemaining : Status -> Time.Posix -> List Namespace
-calcRemaining status now =
-    List.map
-        (\v -> { v | remaining = millisRemaining (Time.posixToMillis now) v.stopTime })
-        status.namespaces
 
 
 page : Status -> Model -> Element Msg
@@ -544,8 +505,8 @@ page status model =
         , width fill
         , height fill
         ]
-        [ title status.time
-        , nsTable (calcRemaining status model.time) model
+        [ title status.clock
+        , nsTable status model
         ]
 
 
@@ -559,19 +520,19 @@ nsDecoder : D.Decoder Namespace
 nsDecoder =
     D.map7 Namespace
         (D.field "name" D.string)
-        (D.field "memLimit" D.int)
+        (D.field "hasDownQuota" D.bool)
+        (D.field "canExtend" D.bool)
         (D.field "memUsed" D.int)
-        (D.field "up" D.bool)
-        (D.maybe <| D.field "stopTime" D.int)
-        (D.maybe <| D.field "startHour" D.int)
-        (D.maybe <| D.field "remaining" D.int)
+        (D.field "memLimit" D.int)
+        (D.maybe <| D.field "autoStartHour" D.int)
+        (D.maybe <| D.field "remaining" D.string)
 
 
 statusDecoder : D.Decoder Status
 statusDecoder =
     D.map2 Status
+        (D.field "clock" D.string)
         (D.field "namespaces" (D.list nsDecoder))
-        (D.field "time" D.string)
 
 
 msgDecoder : String -> Result D.Error Status
@@ -595,7 +556,7 @@ view model =
                         Ok values ->
                             values
 
-                        Err _ ->
-                            { namespaces = [], time = "" }
+                        Err x ->
+                            { namespaces = [], clock = "JSON decoding error: " ++ D.errorToString x }
             in
             layout [] <| page status model

@@ -46,10 +46,8 @@ kubectl port-forward deployment/podreaper 8080:8080 -n podreaper
 
 ## Development
 
-Note: There are two backend implementations, fake and kubernetes. Choose the
-one you would like to use in `src/main/resources/application.yml` before
-running the back end e.g. set `backend.fake.enabled` to `true`. In order to use the
-kubernetes backend you must have a working cluster and kubeconfig defined.
+Note: In order to use the kubernetes backend you must have a working cluster
+      and kubeconfig defined.
 
 1. Run the back end using `make backend-dev`
 2. Run the front end using `make frontend-dev`

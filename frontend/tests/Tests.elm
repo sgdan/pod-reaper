@@ -10,36 +10,38 @@ boldJson =
     """
         {
             "name": "bold-person",
-            "up": true,
+            "hasDownQuota": true,
+            "canExtend": true,
             "memUsed": 3,
             "memLimit": 50,
-            "startHour": 10,
-            "stopTime": 1572735059247
+            "autoStartHour": 10,
+            "remaining": "6h 14m"
         }
     """
 
 
 beautifulJson =
     """
-            {
-                "name": "beautiful-spider",
-                "up": false,
-                "memUsed": 45,
-                "memLimit": 100,
-                "stopTime": 1572738659267
-            }
+        {
+            "name": "beautiful-spider",
+            "hasDownQuota": false,
+            "canExtend": false,
+            "memUsed": 45,
+            "memLimit": 100
+        }
     """
 
 
 creepyJson =
     """
-            {
-                "name": "creepy-demon",
-                "up": false,
-                "memUsed": 6,
-                "memLimit": 20,
-                "startHour": 8
-            }
+        {
+            "name": "creepy-demon",
+            "hasDownQuota": false,
+            "canExtend": true,
+            "memUsed": 6,
+            "memLimit": 20,
+            "autoStartHour": 8
+        }
     """
 
 
@@ -48,17 +50,17 @@ jsonList =
 
 
 jsonMessage =
-    "{\"namespaces\":" ++ jsonList ++ ",\"time\": \"20:14 UTC\"}"
+    "{\"namespaces\":" ++ jsonList ++ ",\"clock\": \"20:14 UTC\"}"
 
 
 creepy : Namespace
 creepy =
     { name = "creepy-demon"
-    , up = False
+    , hasDownQuota = False
+    , canExtend = True
     , memUsed = 6
     , memLimit = 20
-    , startHour = Just 8
-    , stopTime = Nothing
+    , autoStartHour = Just 8
     , remaining = Nothing
     }
 
@@ -66,11 +68,11 @@ creepy =
 beautiful : Namespace
 beautiful =
     { name = "beautiful-spider"
-    , up = False
+    , hasDownQuota = False
+    , canExtend = False
     , memUsed = 45
     , memLimit = 100
-    , stopTime = Just 1572738659267
-    , startHour = Nothing
+    , autoStartHour = Nothing
     , remaining = Nothing
     }
 
@@ -78,12 +80,12 @@ beautiful =
 bold : Namespace
 bold =
     { name = "bold-person"
-    , up = True
+    , hasDownQuota = True
+    , canExtend = True
     , memUsed = 3
     , memLimit = 50
-    , startHour = Just 10
-    , stopTime = Just 1572735059247
-    , remaining = Nothing
+    , autoStartHour = Just 10
+    , remaining = Just "6h 14m"
     }
 
 
@@ -94,7 +96,7 @@ msg =
             Expect.equal
                 (msgDecoder jsonMessage)
             <|
-                Ok (Status [ bold, beautiful, creepy ] "20:14 UTC")
+                Ok (Status "20:14 UTC" [ bold, beautiful, creepy ])
 
 
 several : Test

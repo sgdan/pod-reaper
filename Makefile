@@ -9,7 +9,7 @@ run: build
 
 # deploy to local kubernetes (make sure "podreaper" namespace exists)
 # view UI at http://localhost:8080
-deploy: build
+deploy:
 	kubectl apply -f deploy.yaml -n podreaper
 
 forward:

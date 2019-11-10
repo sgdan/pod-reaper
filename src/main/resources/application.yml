@@ -12,6 +12,9 @@ micronaut:
         all:
           allowedOrigins:
             - http://localhost:3000
+endpoints:
+  health:
+    #details-visible: ANONYMOUS
 
 backend:
   kubernetes:

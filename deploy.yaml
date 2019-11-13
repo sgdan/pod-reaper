@@ -4,22 +4,52 @@ metadata:
   name: podreaper
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: podreaper
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "update", "list", "create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: podreaper
+subjects:
+  - kind: ServiceAccount
+    name: podreaper
+roleRef:
+  kind: Role
+  name: podreaper
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: podreaper
 rules:
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["get", "watch", "list"]
+    verbs: ["get", "watch", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["get", "list", "update", "create", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["limitranges"]
+    verbs: ["get", "list", "update", "create", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: podreaper
 subjects:
-  - kind: Group
-    name: manager
-    apiGroup: rbac.authorization.k8s.io
+  - kind: ServiceAccount
+    name: podreaper
+    namespace: podreaper
 roleRef:
   kind: ClusterRole
   name: podreaper

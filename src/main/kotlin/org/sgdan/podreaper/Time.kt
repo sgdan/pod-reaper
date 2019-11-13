@@ -1,10 +1,13 @@
 package org.sgdan.podreaper
 
+import mu.KotlinLogging
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+
+private val log = KotlinLogging.logger {}
 
 private fun isWeekend(day: DayOfWeek) =
         setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY).contains(day)
@@ -31,7 +34,10 @@ fun toZDT(millis: Long, zone: ZoneId): ZonedDateTime =
  * @return same time as "now" but from most recent weekday, or null
  *         if no start hour has been specified
  */
-fun lastScheduled(startHour: Int?, now: ZonedDateTime) = startHour?.let {
-    val start = weekday(now.withHour(it))
-    if (now.isAfter(start)) start else weekday(start.minusDays(1))
-} ?: toZDT(0, now.zone)
+fun lastScheduled(startHour: Int?, now: ZonedDateTime): ZonedDateTime {
+    val last = startHour?.let {
+        val start = weekday(now.withHour(it))
+        if (start.isAfter(now)) weekday(start.minusDays(1)) else start
+    }
+    return last?.withMinute(0)?.withSecond(0) ?: toZDT(0, now.zone)
+}

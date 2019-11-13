@@ -106,9 +106,12 @@ fun remainingTime(remaining: Long): String {
 
 fun readNamespace(client: KubernetesClient, name: String, status: Status): NamespaceStatus {
     val rq = readResourceQuota(client, name)
-    val lastStarted = status.settings[name]?.lastStarted ?: 0
-    val remaining = remainingSeconds(lastStarted, status.now)
     val autoStartHour = status.settings[name]?.autoStartHour
+    val lastScheduled = lastScheduled(autoStartHour, status.zdt)
+    val lastScheduledMillis = lastScheduled.toEpochSecond() * 1000
+    val lastStarted = max(status.settings[name]?.lastStarted ?: 0, lastScheduledMillis)
+    log.debug { "last started: ${toZDT(lastStarted, status.zone)}"}
+    val remaining = remainingSeconds(lastStarted, status.now)
     return NamespaceStatus(
             name,
             hasLimitRange(client, name),
@@ -119,7 +122,7 @@ fun readNamespace(client: KubernetesClient, name: String, status: Status): Names
             toGigs(rq?.spec?.hard?.get(LIMITS_MEMORY)?.amount),
             autoStartHour,
             remainingTime(remaining),
-            lastScheduled(autoStartHour, status.zdt),
+            lastScheduled,
             lastStarted
     )
 }

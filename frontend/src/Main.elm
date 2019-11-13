@@ -240,6 +240,7 @@ nsTable status model =
     table
         [ spacing 10
         , padding 10
+        , width (fill |> maximum 950)
         , Font.alignRight
         , Font.size 18
         ]
@@ -491,15 +492,15 @@ title : String -> Element Msg
 title clock =
     row [ width fill ]
         [ el [ Font.size 40 ] <| text "Pod Reaper"
-        , el [ Font.size 14, Font.alignRight, width fill ] <| text clock
+        , el [ Font.size 14, Font.alignRight, width (fill |> maximum 610) ] <|
+            text clock
         ]
 
 
 page : Status -> Model -> Element Msg
 page status model =
     column
-        [ Background.color dark
-        , Font.color grey
+        [ Font.color grey
         , spacing 20
         , padding 20
         , width fill
@@ -559,4 +560,4 @@ view model =
                         Err x ->
                             { namespaces = [], clock = "JSON decoding error: " ++ D.errorToString x }
             in
-            layout [] <| page status model
+            layout defaultStyle <| page status model

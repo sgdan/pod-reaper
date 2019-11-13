@@ -66,7 +66,12 @@ fun reap(client: KubernetesClient, status: Status, ns: NamespaceStatus) {
 
         // change up/down state
         if (!ns.hasDownQuota && !shouldRun) bringDown(client, ns.name)
-        if (ns.hasDownQuota && shouldRun) bringUp(client, ns.name)
+        if (ns.hasDownQuota && shouldRun) {
+            bringUp(client, ns.name)
+            val existing = status.settings[ns.name] ?: NamespaceConfig()
+            saveSettings(client, status.settings.plus(
+                    ns.name to existing.copy(lastStarted = started.toEpochSecond() * 1000)))
+        }
 
         // kill any pods that are running
         if (!shouldRun) client.pods().inNamespace(ns.name).delete()

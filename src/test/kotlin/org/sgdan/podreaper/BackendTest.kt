@@ -5,6 +5,7 @@ import mu.KotlinLogging
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 private val log = KotlinLogging.logger {}
@@ -64,6 +65,16 @@ class K8sBackendTest {
         assertEquals(thu9am, lastScheduled(9, fri8am))
         assertEquals(fri9am, lastScheduled(9, sun10am))
         assertEquals(fri9am, lastScheduled(9, mon8am))
+    }
+
+    @Test
+    fun autoStart() {
+        val wed8pm = ZonedDateTime.parse("2019-11-13T20:00Z")
+        val wedAfter8pm = ZonedDateTime.parse("2019-11-13T20:32Z")
+        val started = mostRecent(wed8pm, toZDT(0, ZoneId.systemDefault()))
+        assertEquals("2019-11-13T20:00Z", "$started")
+        assertEquals("2019-11-13T20:00Z", "${lastScheduled(20, wedAfter8pm)}")
+        assertTrue(hoursFrom(started, wedAfter8pm) < 8)
     }
 
     private fun remaining(lastStarted: Long, now: Long) =

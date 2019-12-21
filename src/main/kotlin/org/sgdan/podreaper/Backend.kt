@@ -32,56 +32,68 @@ class ClientFactory {
     fun client() = DefaultKubernetesClient()
 }
 
-@Singleton
-class Backend(private val client: KubernetesClient) {
+class Config() {
     @Value("\${backend.kubernetes.ignore}")
     lateinit var ignore: Set<String>
 
     @Value("\${backend.kubernetes.zoneid}")
     lateinit var zoneid: String
 
-    private var lastStatus = Status(ZoneId.systemDefault(), emptySet())
+    var force = false
+}
+
+@Singleton
+class Backend(private val client: KubernetesClient,
+              private val cfg: Config) {
+    private var current = Status(
+            zone = ZoneId.of(cfg.zoneid),
+            ignoredNamespaces = cfg.ignore,
+            settings = readSettings(client))
 
     @Synchronized
-    @Scheduled(fixedDelay = "30s", initialDelay = "5s")
-    fun reap() {
+    @Scheduled(fixedDelay = "10s")
+    fun update() {
         try {
-            lastStatus.namespaces.forEach { ns ->
-                log.debug { "reaping ${ns.name}" }
-                if (!ns.hasLimitRange) createLimitRange(client, ns.name)
-                if (!ns.hasResourceQuota) createResourceQuota(client, ns.name, RESOURCE_QUOTA_NAME, DEFAULT_QUOTA)
-                reap(client, lastStatus, ns)
-            }
+            current = updateNamespaces(current.copy(now = currentTimeMillis()), client, cfg.force)
         } catch (e: Exception) {
-            log.error(e) { "Unexpected error while reaping: $e" }
+            log.error(e) { "Unable to update" }
         }
     }
 
     @Synchronized
-    fun getStatus() = read(client, Status(ZoneId.of(zoneid), ignore)).also {
-        lastStatus = it
+    @Scheduled(fixedDelay = "10s", initialDelay = "5s")
+    fun reap() {
+        try {
+            current = reapNamespaces(current, client)
+        } catch (e: Exception) {
+            log.error(e) { "Unable to reap" }
+        }
     }
 
     @Synchronized
-    fun setMemLimit(namespace: String, limit: Int): Status {
-        setLimit(client, namespace, limit)
-        return getStatus()
-    }
+    fun getStatus(): Status = current
 
     @Synchronized
-    fun setStartHour(namespace: String, autoStartHour: Int?): Status {
-        val s = lastStatus.settings
-        val newConfig = NamespaceConfig(autoStartHour, s[namespace]?.lastStarted ?: 0)
-        saveSettings(client, s.plus(namespace to newConfig))
-        return getStatus()
-    }
+    fun setMemLimit(namespace: String, limit: Int): Status =
+            try {
+                setMemLimit(current, client, namespace, limit).also { current = it }
+            } catch (e: Exception) {
+                current.copy(error = "Unable to set start hour for $namespace: ${e.message}")
+            }
 
     @Synchronized
-    fun extend(namespace: String): Status {
-        val s = lastStatus.settings
-        bringUp(client, namespace)
-        val newConfig = NamespaceConfig(s[namespace]?.autoStartHour, currentTimeMillis())
-        saveSettings(client, s.plus(namespace to newConfig))
-        return getStatus()
-    }
+    fun setStartHour(namespace: String, autoStartHour: Int?): Status =
+            try {
+                setStartHour(current, client, namespace, autoStartHour).also { current = it }
+            } catch (e: Exception) {
+                current.copy(error = "Unable to set start hour for $namespace: ${e.message}")
+            }
+
+    @Synchronized
+    fun extend(namespace: String): Status =
+            try {
+                extend(current, client, namespace).also { current = it }
+            } catch (e: Exception) {
+                current.copy(error = "Unable to extend namespace: ${e.message}")
+            }
 }

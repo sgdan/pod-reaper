@@ -511,6 +511,7 @@ page status model =
         ]
 
 
+defaultStyle : List (Attribute msg)
 defaultStyle =
     [ Background.color dark
     , Font.color grey

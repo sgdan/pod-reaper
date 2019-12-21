@@ -42,24 +42,13 @@ data class NamespaceStatus(val name: String,
                            val autoStartHour: Int?,
                            val remaining: String,
                            val lastScheduled: ZonedDateTime?,
-                           val lastStarted: Long)
+                           val lastStarted: Long,
+                           val lastRefreshed: Long = 0)
 
 /** Stored in config map in k8s cluster for each namespace */
 data class NamespaceConfig(
         val autoStartHour: Int? = null,
         val lastStarted: Long = 0)
-
-/**
- * @return a read only status snapshot by reading the data from the k8s API
- *
- * @param status will use the settings already in the given status
- */
-fun read(client: KubernetesClient, status: Status): Status = try {
-    readNamespaces(client, readSettings(client, status))
-} catch (e: Exception) {
-    log.error(e) { "Unable to read status" }
-    status.copy(error = "Unable to read status: $e")
-}
 
 fun parseConfig(json: String?): Map<String, NamespaceConfig> = try {
     om.readValue<Map<String, NamespaceConfig>>(json, jType)
@@ -74,16 +63,9 @@ fun parseConfig(json: String?): Map<String, NamespaceConfig> = try {
 /**
  * @return the namespace settings stored in the config map
  */
-fun readSettings(client: KubernetesClient, status: Status): Status {
+fun readSettings(client: KubernetesClient): Map<String, NamespaceConfig> {
     val cm = client.configMaps().inNamespace(REAPER_NAMESPACE).withName(CONFIG_MAP_NAME).get()
-    return status.copy(settings = parseConfig(cm?.data?.get(CONFIG)))
-}
-
-fun readNamespaces(client: KubernetesClient, status: Status): Status {
-    val namespaces = client.namespaces().list().items.map { it.metadata.name }
-            .filter { !status.ignoredNamespaces.contains(it) }
-            .map { readNamespace(client, it, status) }
-    return status.copy(namespaces = namespaces)
+    return parseConfig(cm?.data?.get(CONFIG))
 }
 
 /**
@@ -91,7 +73,6 @@ fun readNamespaces(client: KubernetesClient, status: Status): Status {
  */
 fun remainingSeconds(lastStarted: Long, now: Long) =
         max(lastStarted + WINDOW * 60 * 60 * 1000 - now, 0) / 1000
-
 
 fun remainingTime(remaining: Long): String {
     val m = remaining / 60
@@ -102,29 +83,6 @@ fun remainingTime(remaining: Long): String {
         h > 0 -> "${h}h %02dm".format(m % 60)
         else -> "${m % 60}m"
     }
-}
-
-fun readNamespace(client: KubernetesClient, name: String, status: Status): NamespaceStatus {
-    val rq = readResourceQuota(client, name)
-    val autoStartHour = status.settings[name]?.autoStartHour
-    val lastScheduled = lastScheduled(autoStartHour, status.zdt)
-    val lastScheduledMillis = lastScheduled.toEpochSecond() * 1000
-    val lastStarted = max(status.settings[name]?.lastStarted ?: 0, lastScheduledMillis)
-    log.debug { "last started: ${toZDT(lastStarted, status.zone)}"}
-    val remaining = remainingSeconds(lastStarted, status.now)
-    return NamespaceStatus(
-            name,
-            hasLimitRange(client, name),
-            rq != null,
-            hasDownQuota(client, name),
-            remaining < (WINDOW - 1) * 60 * 60,
-            toGigs(rq?.status?.used?.get(LIMITS_MEMORY)?.amount),
-            toGigs(rq?.spec?.hard?.get(LIMITS_MEMORY)?.amount),
-            autoStartHour,
-            remainingTime(remaining),
-            lastScheduled,
-            lastStarted
-    )
 }
 
 fun hasDownQuota(client: KubernetesClient, namespace: String): Boolean =
@@ -148,7 +106,7 @@ fun hasLimitRange(client: KubernetesClient, namespace: String): Boolean =
                 } ?: false
 
 operator fun Regex.contains(text: CharSequence): Boolean = matches(text)
-private fun toGigs(value: String?) = when (value) {
+fun toGigs(value: String?) = when (value) {
     null -> 0
     in Regex("[0-9]+Gi") -> value.removeSuffix("Gi").toInt()
     in Regex("[0-9]+Mi") -> value.removeSuffix("Mi").toInt() / 1000

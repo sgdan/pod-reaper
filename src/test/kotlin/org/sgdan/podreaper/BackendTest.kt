@@ -16,10 +16,12 @@ class K8sBackendTest {
     public val server = KubernetesServer(true, true)
 
     private val backend: Backend by lazy {
-        Backend(server.client).apply {
+        val cfg = Config().apply {
             ignore = setOf("kube-system", "kube-public")
             zoneid = "UTC"
+            force = true
         }
+        Backend(server.client, cfg)
     }
 
     private fun createNamespace(name: String) {
@@ -31,22 +33,28 @@ class K8sBackendTest {
     fun getNamespaces() {
         listOf("ns1", "ns2", "kube-system", "kube-public", "default")
                 .forEach { createNamespace(it) }
-        assertEquals(listOf("ns1", "ns2", "default"),
+        backend.update()
+        assertEquals(listOf("default", "ns1", "ns2"),
                 backend.getStatus().namespaces.map { it.name })
     }
 
     @Test
     fun resourceQuota() {
         createNamespace("ns")
+        backend.update()
         assertFalse(backend.getStatus().namespaces[0].hasDownQuota)
         bringDown(server.client, "ns")
+        backend.update()
         assertTrue(backend.getStatus().namespaces[0].hasDownQuota)
         bringUp(server.client, "ns")
+        backend.update()
         assertFalse(backend.getStatus().namespaces[0].hasDownQuota)
 
         createResourceQuota(server.client, "ns", RESOURCE_QUOTA_NAME, "40Gi")
+        backend.update()
         assertEquals(40, backend.getStatus().namespaces[0].memLimit)
         backend.setMemLimit("ns", 30)
+        backend.update()
         assertEquals(30, backend.getStatus().namespaces[0].memLimit)
     }
 

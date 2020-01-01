@@ -56,7 +56,7 @@ class Backend(private val client: KubernetesClient,
         try {
             current = updateNamespaces(current.copy(now = currentTimeMillis()), client, cfg.force)
         } catch (e: Exception) {
-            log.error(e) { "Unable to update" }
+            log.error { "Unable to update: ${e.message}" }
         }
     }
 
@@ -66,7 +66,7 @@ class Backend(private val client: KubernetesClient,
         try {
             current = reapNamespaces(current, client)
         } catch (e: Exception) {
-            log.error(e) { "Unable to reap" }
+            log.error { "Unable to reap: ${e.message}" }
         }
     }
 
@@ -78,7 +78,10 @@ class Backend(private val client: KubernetesClient,
             try {
                 setMemLimit(current, client, namespace, limit).also { current = it }
             } catch (e: Exception) {
-                current.copy(error = "Unable to set start hour for $namespace: ${e.message}")
+                "Unable to set start hour for $namespace: ${e.message}".let {
+                    log.error { it }
+                    current.copy(error = it)
+                }
             }
 
     @Synchronized
@@ -86,7 +89,10 @@ class Backend(private val client: KubernetesClient,
             try {
                 setStartHour(current, client, namespace, autoStartHour).also { current = it }
             } catch (e: Exception) {
-                current.copy(error = "Unable to set start hour for $namespace: ${e.message}")
+                "Unable to set start hour for $namespace: ${e.message}".let {
+                    log.error { it }
+                    current.copy(error = it)
+                }
             }
 
     @Synchronized
@@ -94,6 +100,9 @@ class Backend(private val client: KubernetesClient,
             try {
                 extend(current, client, namespace).also { current = it }
             } catch (e: Exception) {
-                current.copy(error = "Unable to extend namespace: ${e.message}")
+                "Unable to extend namespace: ${e.message}".let {
+                    log.error { it }
+                    current.copy(error = it)
+                }
             }
 }

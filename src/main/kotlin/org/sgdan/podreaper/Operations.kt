@@ -33,29 +33,49 @@ fun extend(current: Status, client: KubernetesClient, name: String): Status {
     return loadNamespace(current.copy(settings = newSettings), client, name)
 }
 
-/** Update 20% of namespaces with each tick */
+/**
+ * Decide how many namespaces to process in this tick. If there are many,
+ * just do 20% at a time.
+ */
+fun numToTake(size: Int) = if (size > 25) size / 5 else 5
+
 fun updateNamespaces(current: Status, client: KubernetesClient, force: Boolean = false): Status {
-    val allNames = client.namespaces().list().items
+    val live = client.namespaces().list().items
             .map { it.metadata.name }
             .filter { !current.ignoredNamespaces.contains(it) }
-    val loadedNames = current.namespaces.map { it.name }
-    val toLoad = allNames.minus(loadedNames)
-    val toUpdate = current.namespaces
+    val loaded = current.namespaces.map { it.name }
+
+    // remove namespaces that have been deleted
+    val toRemove = loaded.minus(live)
+    val afterRemove = current.copy(namespaces = current.namespaces.filter {
+        !toRemove.contains(it.name)
+    }, settings = current.settings.filter {
+        !toRemove.contains(it.key)
+    })
+    if (toRemove.isNotEmpty()) {
+        log.info { "Removed namespaces: $toRemove" }
+        saveSettings(client, afterRemove.settings)
+    }
+
+    // figure out which need to be loaded and/or updated
+    val toLoad = live.minus(loaded)
+    val toUpdate = afterRemove.namespaces
             .sortedBy { it.lastRefreshed }
-            .take(current.namespaces.size / 5)
+            .take(numToTake(current.namespaces.size))
             .map { it.name }
-    return allNames.fold(current, { result, name ->
+
+    // load and/or update
+    return live.fold(afterRemove, { result, name ->
         if (force || toUpdate.contains(name) || toLoad.contains(name))
             loadNamespace(result, client, name)
         else result
     })
 }
 
-/** Reap 20% of namespaces with each tick */
 fun reapNamespaces(current: Status, client: KubernetesClient): Status =
         current.namespaces
                 .sortedBy { -it.lastRefreshed }
-                .take(current.namespaces.size / 5)
+                .take(numToTake(current.namespaces.size))
                 .fold(current, { result, namespace ->
                     reap(client, result, namespace)
                     loadNamespace(result, client, namespace.name)

@@ -44,6 +44,9 @@ fun saveSettings(client: KubernetesClient, settings: Map<String, NamespaceConfig
 }
 
 fun reap(client: KubernetesClient, status: Status, ns: NamespaceStatus) {
+    if (!ns.hasLimitRange) createLimitRange(client, ns.name)
+    if (!ns.hasResourceQuota) createResourceQuota(client, ns.name, RESOURCE_QUOTA_NAME, DEFAULT_QUOTA)
+
     val started = mostRecent(ns.lastScheduled, toZDT(ns.lastStarted, status.zone))
     val shouldRun = hoursFrom(started, status.zdt) < 8
 
@@ -57,7 +60,10 @@ fun reap(client: KubernetesClient, status: Status, ns: NamespaceStatus) {
     }
 
     // kill any pods that are running
-    if (!shouldRun) client.pods().inNamespace(ns.name).delete()
+    if (!shouldRun) client.pods().inNamespace(ns.name).let {
+        val n = it.list().items.size
+        if (n > 0 && it.delete()) log.info { "Deleted $n pods in ${ns.name}" }
+    }
 }
 
 fun createLimitRange(client: KubernetesClient, ns: String) {

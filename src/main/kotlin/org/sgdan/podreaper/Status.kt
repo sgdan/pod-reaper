@@ -93,16 +93,12 @@ fun readResourceQuota(client: KubernetesClient, namespace: String): ResourceQuot
     return client.resourceQuotas().inNamespace(namespace).withName(RESOURCE_QUOTA_NAME).get()
 }
 
-fun defaultLimitRangeItem(): LimitRangeItem = LimitRangeItemBuilder()
-        .withDefault(mapOf(MEMORY to Quantity(POD_LIMIT)))
-        .withDefaultRequest(mapOf(MEMORY to Quantity(POD_REQUEST)))
-        .build()!!
-
 fun hasLimitRange(client: KubernetesClient, namespace: String): Boolean =
         client.limitRanges().inNamespace(namespace)
                 .withName(LIMIT_RANGE_NAME)
-                .get()?.let {
-                    it.spec?.limits?.contains(defaultLimitRangeItem())
+                .get()?.spec?.limits?.get(0)?.let {
+                    it.default?.get(MEMORY)?.amount == POD_LIMIT
+                            && it.defaultRequest?.get(MEMORY)?.amount == POD_REQUEST
                 } ?: false
 
 operator fun Regex.contains(text: CharSequence): Boolean = matches(text)

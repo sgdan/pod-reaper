@@ -46,8 +46,16 @@ kubectl port-forward deployment/podreaper 8080:8080 -n podreaper
 
 ## Development
 
+Assumes frontend tools have already been installed locally e.g.
+
+```bash
+yarn global add create-elm-app
+yarn global add elm-test
+yarn global add elm
+```
+
 Note: In order to use the kubernetes backend you must have a working cluster
-      and kubeconfig defined.
+and kubeconfig defined.
 
 1. Run the back end using `make backend-dev`
 2. Run the front end using `make frontend-dev`

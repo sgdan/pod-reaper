@@ -2,7 +2,7 @@
 
 # Front end: Elm
 FROM node:12.12.0 as frontend
-RUN yarn global add create-elm-app@3.2.2
+RUN yarn global add create-elm-app@4.1.2
 WORKDIR /app
 COPY frontend/elm.json .
 COPY frontend/public public/

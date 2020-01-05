@@ -8,10 +8,9 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Html
-import Http
+import Http exposing (..)
 import Json.Decode as D
 import Json.Encode as E
-import Task
 import Time exposing (..)
 
 
@@ -34,9 +33,9 @@ main =
 
 
 type ServerState
-    = LoadFailed
-    | Loading
-    | Loaded String
+    = Loading
+    | LoadFailed String
+    | Loaded Status
 
 
 type alias Model =
@@ -48,7 +47,7 @@ type alias Model =
 
 
 type alias Flags =
-    { url : String }
+    String
 
 
 type alias Namespace =
@@ -132,9 +131,9 @@ init flags =
     ( { state = Loading
       , editLimit = Nothing
       , editStart = Nothing
-      , url = flags.url
+      , url = flags
       }
-    , loadState flags.url
+    , loadState flags
     )
 
 
@@ -152,16 +151,40 @@ type Msg
     | SetStart String (Maybe Int)
 
 
+toString : Http.Error -> String
+toString e =
+    case e of
+        BadUrl msg ->
+            "Bad url: " ++ msg
+
+        Timeout ->
+            "Timeout"
+
+        NetworkError ->
+            "Network error"
+
+        BadStatus x ->
+            "Bad status: " ++ String.fromInt x
+
+        BadBody msg ->
+            "Bad body: " ++ msg
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotUpdate result ->
             case result of
                 Ok json ->
-                    ( { model | state = Loaded json }, Cmd.none )
+                    case msgDecoder json of
+                        Ok status ->
+                            ( { model | state = Loaded status }, Cmd.none )
 
-                Err _ ->
-                    ( { model | state = LoadFailed }, Cmd.none )
+                        Err x ->
+                            ( { model | state = LoadFailed <| D.errorToString x }, Cmd.none )
+
+                Err x ->
+                    ( { model | state = LoadFailed <| toString x }, Cmd.none )
 
         GetUpdate newTime ->
             ( model, loadState model.url )
@@ -483,9 +506,16 @@ extendButton ns =
         none
 
 
+defaultPage : List (Element Msg) -> Element Msg
+defaultPage content =
+    column
+        [ Font.color grey, spacing 20, padding 20, width fill, height fill ]
+        content
+
+
 errorPage : String -> Element Msg
 errorPage message =
-    el [] (text message)
+    defaultPage [ title "", el [] (text message) ]
 
 
 title : String -> Element Msg
@@ -499,13 +529,7 @@ title clock =
 
 page : Status -> Model -> Element Msg
 page status model =
-    column
-        [ Font.color grey
-        , spacing 20
-        , padding 20
-        , width fill
-        , height fill
-        ]
+    defaultPage
         [ title status.clock
         , nsTable status model
         ]
@@ -545,20 +569,11 @@ msgDecoder json =
 view : Model -> Html.Html Msg
 view model =
     case model.state of
-        LoadFailed ->
-            layout defaultStyle <| errorPage "Unable to retrieve namespace data"
+        LoadFailed msg ->
+            layout defaultStyle <| errorPage <| "Unable to retrieve namespace data: " ++ msg
 
         Loading ->
             layout defaultStyle <| errorPage "Loading..."
 
-        Loaded json ->
-            let
-                status =
-                    case msgDecoder json of
-                        Ok values ->
-                            values
-
-                        Err x ->
-                            { namespaces = [], clock = "JSON decoding error: " ++ D.errorToString x }
-            in
+        Loaded status ->
             layout defaultStyle <| page status model

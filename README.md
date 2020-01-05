@@ -57,9 +57,10 @@ yarn global add elm
 Note: In order to use the kubernetes backend you must have a working cluster
 and kubeconfig defined.
 
-1. Run the back end using `make backend-dev`
-2. Run the front end using `make frontend-dev`
-3. Go to [http://localhost:3000](http://localhost:3000) in your browser to
+1. Create namespace for config `kubectl create ns podreaper`
+2. Run the back end using `make backend-dev`
+3. Run the front end using `make frontend-dev`
+4. Go to [http://localhost:3000](http://localhost:3000) in your browser to
    test. The UI will automatically reload when front end code is changed.
 
 For front end unit tests run `make frontend-test`.

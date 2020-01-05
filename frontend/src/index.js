@@ -3,5 +3,5 @@ import { Elm } from "./Main.elm";
 
 Elm.Main.init({
   node: document.getElementById("root"),
-  flags: { url: process.env.ELM_APP_URL }
+  flags: process.env.ELM_APP_URL
 });

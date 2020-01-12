@@ -1,17 +1,40 @@
-module Main exposing (..)
+module Main exposing (main)
 
 import Browser
-import Element exposing (..)
+import Element
+    exposing
+        ( Attr
+        , Attribute
+        , Color
+        , Element
+        , alignRight
+        , column
+        , el
+        , fill
+        , fillPortion
+        , height
+        , layout
+        , maximum
+        , none
+        , padding
+        , rgb255
+        , row
+        , shrink
+        , spacing
+        , table
+        , text
+        , width
+        )
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Html
-import Http exposing (..)
+import Http exposing (Error(..))
 import Json.Decode as D
 import Json.Encode as E
-import Time exposing (..)
+import Time
 
 
 
@@ -186,7 +209,7 @@ update msg model =
                 Err x ->
                     ( { model | state = LoadFailed <| toString x }, Cmd.none )
 
-        GetUpdate newTime ->
+        GetUpdate _ ->
             ( model, loadState model.url )
 
         Extend namespace ->
@@ -210,41 +233,31 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Time.every 5000 GetUpdate
 
 
-nsRow : Namespace -> Element msg
-nsRow ns =
-    row
-        [ spacing 20
-        , padding 20
-        ]
-        [ text ns.name
-        , text "-"
-        , text "State"
-        , text (String.fromInt ns.memLimit)
-        , text (String.fromInt ns.memUsed)
-        , text "-"
-        ]
-
-
+blue : Color
 blue =
     rgb255 100 100 255
 
 
+green : Color
 green =
     rgb255 75 255 75
 
 
+red : Color
 red =
     rgb255 255 75 75
 
 
+dark : Color
 dark =
     rgb255 20 20 20
 
 
+grey : Color
 grey =
     rgb255 130 130 130
 
@@ -254,6 +267,7 @@ showNamespace ns =
     el [ getColor ns, Font.alignLeft ] <| text ns.name
 
 
+headerAttr : List (Attr decorative msg)
 headerAttr =
     [ Font.size 20, Font.color blue ]
 
@@ -295,7 +309,7 @@ nsTable status model =
               }
             , { header = none
               , width = fillPortion 1
-              , view = \ns -> none
+              , view = \_ -> none
               }
             ]
         }
@@ -433,40 +447,6 @@ showLimit model ns =
             text <| String.fromInt ns.memLimit
 
 
-padAndMod : Int -> String
-padAndMod val =
-    String.fromInt (modBy 60 val) |> String.padLeft 2 '0'
-
-
-formatRemaining : Int -> String
-formatRemaining millis =
-    let
-        m =
-            millis // 1000 // 60
-
-        h =
-            m // 60
-
-        hs =
-            if h > 0 then
-                String.fromInt h ++ "h "
-
-            else
-                ""
-
-        ms =
-            if m > 0 && h > 0 then
-                padAndMod m ++ "m"
-
-            else if m > 0 then
-                String.fromInt m ++ "m"
-
-            else
-                ""
-    in
-    hs ++ ms
-
-
 getColor : Namespace -> Attribute msg
 getColor ns =
     if ns.hasDownQuota && ns.memUsed > 0 then
@@ -554,11 +534,16 @@ nsDecoder =
         (D.maybe <| D.field "remaining" D.string)
 
 
+decodeNamespaces : Maybe (List Namespace) -> D.Decoder (List Namespace)
+decodeNamespaces ns =
+    D.succeed (Maybe.withDefault [] ns)
+
+
 statusDecoder : D.Decoder Status
 statusDecoder =
     D.map2 Status
         (D.field "clock" D.string)
-        (D.field "namespaces" (D.list nsDecoder))
+        (D.maybe (D.field "namespaces" <| D.list nsDecoder) |> D.andThen decodeNamespaces)
 
 
 msgDecoder : String -> Result D.Error Status

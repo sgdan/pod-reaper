@@ -4,9 +4,7 @@ import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Post
-import mu.KotlinLogging
-
-private val log = KotlinLogging.logger {}
+import kotlinx.coroutines.runBlocking
 
 data class StartRequest(val namespace: String,
                         val startHour: Int?)
@@ -18,17 +16,20 @@ data class LimitRequest(val namespace: String,
 class ReaperController(private val backend: Backend) {
 
     @Get("/reaper/status")
-    fun status(): Status = backend.getStatus()
+    fun status(): Status = runBlocking { backend.getStatus() }
 
     @Post("/reaper/setMemLimit")
-    fun setMemLimit(@Body req: LimitRequest) =
-            backend.setMemLimit(req.namespace, req.limit)
+    fun setMemLimit(@Body req: LimitRequest) = runBlocking {
+        backend.setMemLimit(req.namespace, req.limit)
+    }
 
     @Post("/reaper/setStartHour")
-    fun setStartHour(@Body req: StartRequest) =
-            backend.setStartHour(req.namespace, req.startHour)
+    fun setStartHour(@Body req: StartRequest) = runBlocking {
+        backend.setStartHour(req.namespace, req.startHour)
+    }
 
     @Post("/reaper/extend")
-    fun postExtend(@Body req: StartRequest) =
-            backend.extend(req.namespace)
+    fun postExtend(@Body req: StartRequest) = runBlocking {
+        backend.extend(req.namespace)
+    }
 }

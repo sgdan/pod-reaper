@@ -1,63 +1,15 @@
 package org.sgdan.podreaper
 
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer
 import mu.KotlinLogging
-import org.junit.Assert.*
-import org.junit.Rule
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
 private val log = KotlinLogging.logger {}
 
-class K8sBackendTest {
-    @Rule
-    @JvmField
-    public val server = KubernetesServer(true, true)
-
-    private val backend: Backend by lazy {
-        val cfg = Config().apply {
-            ignore = setOf("kube-system", "kube-public")
-            zoneid = "UTC"
-            force = true
-        }
-        Backend(server.client, cfg)
-    }
-
-    private fun createNamespace(name: String) {
-        server.client.namespaces().createNew()
-                .withNewMetadata().withName(name).endMetadata().done()
-    }
-
-    @Test
-    fun getNamespaces() {
-        listOf("ns1", "ns2", "kube-system", "kube-public", "default")
-                .forEach { createNamespace(it) }
-        backend.update()
-        assertEquals(listOf("default", "ns1", "ns2"),
-                backend.getStatus().namespaces.map { it.name })
-    }
-
-    @Test
-    fun resourceQuota() {
-        createNamespace("ns")
-        backend.update()
-        assertFalse(backend.getStatus().namespaces[0].hasDownQuota)
-        bringDown(server.client, "ns")
-        backend.update()
-        assertTrue(backend.getStatus().namespaces[0].hasDownQuota)
-        bringUp(server.client, "ns")
-        backend.update()
-        assertFalse(backend.getStatus().namespaces[0].hasDownQuota)
-
-        createResourceQuota(server.client, "ns", RESOURCE_QUOTA_NAME, "40Gi")
-        backend.update()
-        assertEquals(40, backend.getStatus().namespaces[0].memLimit)
-        backend.setMemLimit("ns", 30)
-        backend.update()
-        assertEquals(30, backend.getStatus().namespaces[0].memLimit)
-    }
-
+class TimeTest {
     private fun zdt(day: String, hour: String) = ZonedDateTime.parse("2019-10-${day}T${hour}:00Z")
 
     @Test

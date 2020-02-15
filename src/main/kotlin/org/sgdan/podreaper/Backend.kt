@@ -3,6 +3,7 @@ package org.sgdan.podreaper
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.micronaut.context.annotation.Factory
+import io.micronaut.context.annotation.Parallel
 import io.micronaut.context.annotation.Value
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.GlobalScope
@@ -25,6 +26,7 @@ class Config() {
 }
 
 @Singleton
+@Parallel // Don't wait until the first request before starting up!
 class Backend(private val client: KubernetesClient,
               private val cfg: Config) {
     private val zoneId = ZoneId.of(cfg.zoneid)

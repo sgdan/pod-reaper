@@ -1,6 +1,7 @@
 package org.sgdan.podreaper
 
 import io.fabric8.kubernetes.api.model.PodBuilder
+import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer
 import mu.KotlinLogging
 import org.junit.Assert.*
@@ -58,14 +59,14 @@ class K8sTest {
         k8s.bringUp("ns")
         assertFalse(k8s.getHasDownQuota("ns"))
 
-        k8s.setResourceQuota("ns", RESOURCE_QUOTA_NAME, "40Gi")
+        k8s.setResourceQuota("ns", RESOURCE_QUOTA_NAME, Quantity("40Gi"))
         val loaded1 = k8s.loadNamespace("ns", null, 0)
         assertEquals(40, loaded1.memLimit)
         k8s.setLimit("ns", 30)
         val loaded2 = k8s.loadNamespace("ns", null, 0)
         assertEquals(30, loaded2.memLimit)
         val rq = k8s.getResourceQuota("ns")
-        assertEquals("30Gi", rq?.spec?.hard?.get(LIMITS_MEMORY)?.amount)
+        assertEquals(Quantity("30Gi"), rq?.spec?.hard?.get(LIMITS_MEMORY))
     }
 
     @Test
@@ -85,8 +86,8 @@ class K8sTest {
         assertTrue(k8s.getHasLimitRange("testLR"))
         val limit = k8s.getLimitRange("testLR")
                 .get().spec.limits[0]
-        assertEquals(POD_LIMIT, limit.default?.get(MEMORY)?.amount)
-        assertEquals(POD_REQUEST, limit.defaultRequest?.get(MEMORY)?.amount)
+        assertEquals(POD_LIMIT, limit.default?.get(MEMORY))
+        assertEquals(POD_REQUEST, limit.defaultRequest?.get(MEMORY))
     }
 
     /**
@@ -101,5 +102,14 @@ class K8sTest {
         assertEquals(3, countPods("ns1"))
         k8s.deletePods("ns1")
         assertEquals(0, countPods("ns1"))
+    }
+
+    @Test
+    fun format() {
+        assertEquals(50, toGigs(Quantity("50Gi")))
+        assertEquals(1, toGigs(Quantity("1016Mi")))
+        assertEquals(0, toGigs(Quantity("512Mi")))
+        assertEquals(1, toGigs(Quantity("1016000")))
+        assertEquals(0, toGigs(Quantity("512000")))
     }
 }

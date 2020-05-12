@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
 import mu.KotlinLogging
+import java.math.BigDecimal
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlin.math.max
@@ -14,15 +15,16 @@ const val REAPER_NAMESPACE = "podreaper"
 const val CONFIG_MAP_NAME = "podreaper-config"
 const val CONFIG = "config"
 const val LIMIT_RANGE_NAME = "reaper-limit"
-const val POD_REQUEST = "512Mi"
-const val POD_LIMIT = "512Mi"
 const val MEMORY = "memory"
 const val CONTAINER = "Container"
 const val RESOURCE_QUOTA_NAME = "reaper-quota"
-const val DEFAULT_QUOTA = "10Gi"
 const val DOWN_QUOTA_NAME = "reaper-down-quota"
 const val LIMITS_MEMORY = "limits.memory"
 const val WINDOW = 8 // Eight hour up-time window
+
+val POD_REQUEST = Quantity("512Mi")
+val POD_LIMIT = Quantity("512Mi")
+val DEFAULT_QUOTA = Quantity("10Gi")
 
 private val log = KotlinLogging.logger {}
 private val om = ObjectMapper()
@@ -62,8 +64,8 @@ class K8s(private val client: KubernetesClient,
     private val limitRange = LimitRangeBuilder()
             .withNewMetadata().withName(LIMIT_RANGE_NAME).endMetadata()
             .withNewSpec().addNewLimit()
-            .withDefault(mapOf(MEMORY to Quantity(POD_LIMIT)))
-            .withDefaultRequest(mapOf(MEMORY to Quantity(POD_REQUEST)))
+            .withDefault(mapOf(MEMORY to POD_LIMIT))
+            .withDefaultRequest(mapOf(MEMORY to POD_REQUEST))
             .withType(CONTAINER)
             .endLimit().endSpec().build()
 
@@ -75,8 +77,8 @@ class K8s(private val client: KubernetesClient,
     fun getHasLimitRange(namespace: String): Boolean = try {
         getLimitRange(namespace)
                 .get()?.spec?.limits?.get(0)?.let {
-            it.default?.get(MEMORY)?.amount == POD_LIMIT
-                    && it.defaultRequest?.get(MEMORY)?.amount == POD_REQUEST
+                    POD_LIMIT == it.default?.get(MEMORY)
+                            && POD_REQUEST == it.defaultRequest?.get(MEMORY)
         } ?: false
     } catch (e: Exception) {
         log.error { "Unable to get limit range for $namespace: ${e.message}" }
@@ -96,8 +98,8 @@ class K8s(private val client: KubernetesClient,
                 name = name,
                 hasDownQuota = getHasDownQuota(name), // access k8s
                 canExtend = remaining < (WINDOW - 1) * 60 * 60,
-                memUsed = toGigs(rq?.status?.used?.get(LIMITS_MEMORY)?.amount),
-                memLimit = toGigs(rq?.spec?.hard?.get(LIMITS_MEMORY)?.amount),
+                memUsed = toGigs(rq?.status?.used?.get(LIMITS_MEMORY)),
+                memLimit = toGigs(rq?.spec?.hard?.get(LIMITS_MEMORY)),
                 autoStartHour = autoStartHour,
                 remaining = remainingTime(remaining),
 
@@ -106,14 +108,6 @@ class K8s(private val client: KubernetesClient,
                 lastScheduled = lastScheduled,
                 lastStarted = lastStarted
         )
-    }
-
-    private operator fun Regex.contains(text: CharSequence): Boolean = matches(text)
-    private fun toGigs(value: String?) = when (value) {
-        null -> 0
-        in Regex("[0-9]+Gi") -> value.removeSuffix("Gi").toInt()
-        in Regex("[0-9]+Mi") -> value.removeSuffix("Mi").toInt() / 1000
-        else -> 0
     }
 
     fun getResourceQuota(namespace: String): ResourceQuota? {
@@ -148,16 +142,16 @@ class K8s(private val client: KubernetesClient,
 
     fun bringDown(namespace: String) {
         if (!getHasDownQuota(namespace)) {
-            setResourceQuota(namespace, DOWN_QUOTA_NAME, "0")
+            setResourceQuota(namespace, DOWN_QUOTA_NAME, Quantity("0"))
             log.info { "Bringing down $namespace" }
         }
     }
 
-    fun setResourceQuota(ns: String, name: String, limit: String) {
+    fun setResourceQuota(ns: String, name: String, limit: Quantity) {
         try {
             client.resourceQuotas().inNamespace(ns).createOrReplaceWithNew()
                     .withNewMetadata().withName(name).withNamespace(ns).endMetadata()
-                    .withNewSpec().withHard(mapOf(LIMITS_MEMORY to Quantity(limit)))
+                    .withNewSpec().withHard(mapOf(LIMITS_MEMORY to limit))
                     .endSpec().done()
         } catch (e: Exception) {
             log.error { "Unable to create resource quota for $ns: ${e.message}" }
@@ -199,4 +193,11 @@ class K8s(private val client: KubernetesClient,
             if (n > 0 && it.delete()) log.info { "Deleted $n pods in $name" }
         }
     }
+}
+
+fun toGigs(value: Quantity?) = when {
+    value == null -> 0
+    value.format == "Gi" -> value.amount.toInt()
+    value.format == "Mi" -> value.amount.toInt() / 1000
+    else -> Quantity.getAmountInBytes(value).divide(BigDecimal(1000 * 1000)).toInt()
 }

@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (Namespace, Status, main, msgDecoder, nsDecoder, statusDecoder)
 
 import Browser
 import Element

@@ -1,33 +1,21 @@
 package org.sgdan.podreaper
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.channels.actor
-import kotlinx.coroutines.delay
+import com.zakgof.actr.IActorRef
+import java.lang.Thread.sleep
 
 /**
  * The Ranger actor is responsible for ensuring each namespace
  * has a LimitRange which specifies default memory settings for
  * pods.
  */
-sealed class Ranger() {
-    object Update : Ranger()
-}
-
-fun CoroutineScope.rangerActor(k8s: K8s, cache: SendChannel<Cache>) = actor<Ranger> {
-    for (msg in channel) when (msg) {
-        is Ranger.Update -> {
-            val namespaces = CompletableDeferred<List<NamespaceStatus>>()
-                    .also { cache.send(Cache.GetNamespaces(it)) }
-                    .await()
+class Ranger(private val k8s: K8s, private val cache: IActorRef<Cache>) {
+    fun update() {
+        cache.ask(Cache::getNamespaces) { namespaces ->
             namespaces.forEach {
                 val hasLimitRange = k8s.getHasLimitRange(it.name)
                 if (!hasLimitRange) k8s.setLimitRange(it.name)
-                delay(500)
+                sleep(500)
             }
         }
     }
-}.also {
-    tick(60, it, Ranger.Update)
 }

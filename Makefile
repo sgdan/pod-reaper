@@ -1,11 +1,15 @@
-.PHONY: build
+.PHONY: build go
+
+go:
+	docker build -t gotest .
+	docker run --rm -it -v $(HOME)/.kube:/root/.kube -p 8080:8080 gotest
 
 # build and run using docker
 build:
 	docker build . -t podreaper
 
-run: build
-	docker run --rm -it -v ~/.kube:/root/.kube -p 8080:8080 podreaper
+# run: build
+# 	docker run --rm -it -v ~/.kube:/root/.kube -p 8080:8080 podreaper
 
 # deploy to local kubernetes (make sure "podreaper" namespace exists)
 # view UI at http://localhost:8080

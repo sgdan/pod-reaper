@@ -4,6 +4,13 @@ go:
 	docker build -t gotest .
 	docker run --rm -it -v $(HOME)/.kube:/root/.kube -p 8080:8080 gotest
 
+# assumes go installed locally
+test:
+	go mod tidy
+	go mod download
+	go test -v ./cmd/reaper
+
+
 # build and run using docker
 build:
 	docker build . -t podreaper

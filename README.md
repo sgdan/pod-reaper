@@ -71,3 +71,7 @@ For front end unit tests run `make frontend-test`.
 - Back end using [Micronaut](https://micronaut.io/) and [Kotlin](https://kotlinlang.org/)
 - Using the [fabric8 kubernetes client](https://github.com/fabric8io/kubernetes-client)
   to access the Kubernetes API.
+
+# Links
+
+- https://itnext.io/testing-kubernetes-go-applications-f1f87502b6ef

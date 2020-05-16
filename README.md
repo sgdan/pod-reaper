@@ -75,3 +75,5 @@ For front end unit tests run `make frontend-test`.
 # Links
 
 - https://itnext.io/testing-kubernetes-go-applications-f1f87502b6ef
+- https://medium.com/golang-learn/go-project-layout-e5213cdcfaa2
+- https://tour.golang.org/concurrency/1

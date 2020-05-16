@@ -43,10 +43,6 @@ class Manager(private val k8s: K8s,
         log.info("Namespace $name was removed")
     }
 
-    fun updateNamespace(name: String) {
-        namespaces[name]?.tell { it.update() }
-    }
-
     fun setStartHour(namespace: String, autoStartHour: Int?) {
         namespaces[namespace]?.get { setStartHour(autoStartHour) }?.join()
     }

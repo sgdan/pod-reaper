@@ -20,16 +20,11 @@ class Namespace(private val k8s: K8s,
     fun update() {
         try {
             if (k8s.getExists(name)) {
-
                 // reap based on the previous status
                 status?.let { reap(it, zoneId, name, k8s, settings) }
 
                 // now update and send to cache
-                val cfg = config(name)
-                status = k8s.loadNamespace(name, cfg.autoStartHour, cfg.lastStarted)
-                status?.let { current ->
-                    cache.get { updateNamespace(name, current) }.join()
-                }
+                quickUpdate()
             } else {
                 manager.get { removeNamespace(name) }.join()
             }
@@ -38,18 +33,33 @@ class Namespace(private val k8s: K8s,
         }
     }
 
+    /**
+     * Update and send to cache
+     */
+    fun quickUpdate() {
+        val cfg = config(name)
+        status = k8s.loadNamespace(name, cfg.autoStartHour, cfg.lastStarted)
+        status?.let { current ->
+            cache.get { updateNamespace(name, current) }.join()
+        }
+    }
+
     fun setMemLimit(value: Int) {
         try {
             k8s.setLimit(name, value)
+            quickUpdate()
         } catch (e: Exception) {
             log.error { "Unable to set mem limit for $name: ${e.message}" }
         }
-        update()
     }
 
     fun setStartHour(value: Int?) {
-        settings.get { setStartHour(name, value) }.join()
-        update()
+        try {
+            settings.get { setStartHour(name, value) }.join()
+            quickUpdate()
+        } catch (e: Exception) {
+            log.error { "Unable to set start hour for $name: ${e.message}" }
+        }
     }
 
     fun extend() {
@@ -57,10 +67,10 @@ class Namespace(private val k8s: K8s,
             k8s.bringUp(name)
             val started = System.currentTimeMillis() - 1
             settings.get { setLastStarted(name, started) }.join()
+            quickUpdate()
         } catch (e: Exception) {
             log.error { "Unable to extend $name: ${e.message}" }
         }
-        update()
     }
 
     private fun config(name: String) =

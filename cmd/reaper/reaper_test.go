@@ -1,10 +1,9 @@
 package main
 
 import (
+	"log"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -19,10 +18,28 @@ func TestNamespaceExists(t *testing.T) {
 	if k8s.getExists("default") {
 		t.Fatal("default namespace should not exist")
 	}
-	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
-	k8s.clientset.CoreV1().Namespaces().Create(nsSpec)
+	k8s.createNamespace("default")
 	k8s.getExists("default")
 	if !k8s.getExists("default") {
 		t.Fatal("default namespace should exist")
+	}
+}
+
+func TestSettings(t *testing.T) {
+	k8s := newTestSimpleK8s()
+
+	// settings should not exist yet
+	settings, _ := k8s.getSettings()
+	if settings != "" {
+		t.Fatal("settings should not exist")
+	}
+
+	// create settings
+	k8s.saveSettings("some data!")
+	settings, err := k8s.getSettings()
+	if err != nil {
+		log.Printf("Error: %s", err)
+	} else {
+		log.Printf("Settings: %s", settings)
 	}
 }

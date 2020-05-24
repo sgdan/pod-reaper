@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"testing"
 
 	"k8s.io/client-go/kubernetes/fake"
@@ -34,12 +33,34 @@ func TestSettings(t *testing.T) {
 		t.Fatal("settings should not exist")
 	}
 
-	// create settings
-	k8s.saveSettings("some data!")
-	settings, err := k8s.getSettings()
-	if err != nil {
-		log.Printf("Error: %s", err)
-	} else {
-		log.Printf("Settings: %s", settings)
+	// example settings
+	nineAm := int(9)
+	example := map[string]namespaceConfig{
+		"ns1": {
+			AutoStartHour: nil,
+			LastStarted:   0,
+		},
+		"ns2": {
+			AutoStartHour: &nineAm,
+			LastStarted:   1589668156345,
+		},
+	}
+
+	// save settings, then retrieve and check
+	k8s.saveSettings(example)
+	settings, _ = k8s.getSettings()
+	expected, _ := toJSON(example)
+	if settings != expected {
+		t.Fatalf("Save settings failed\nExpected: %s\nActual: %s", expected, settings)
+	}
+}
+
+func TestJSON(t *testing.T) {
+	example := "{\"default\":{\"autoStartHour\":null,\"lastStarted\":1589668156345},\"ns1\":{\"autoStartHour\":9,\"lastStarted\":0}}"
+	converted, _ := fromJSON(example)
+
+	restored, _ := toJSON(converted)
+	if example != restored {
+		t.Fatalf("JSON conversions failed\nExpected: %s\nActual: %s", example, restored)
 	}
 }

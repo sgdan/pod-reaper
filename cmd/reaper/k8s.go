@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
@@ -13,8 +14,8 @@ type k8s struct {
 }
 
 type namespaceConfig struct {
-	autoStartHour *int
-	lastStarted   uint64
+	AutoStartHour *int   `json:"autoStartHour"`
+	LastStarted   uint64 `json:"lastStarted"`
 }
 
 func (o *k8s) getVersion() (string, error) {
@@ -49,15 +50,30 @@ func (o *k8s) getSettings() (string, error) {
 	return cm.Data["config"], nil
 }
 
-func (o *k8s) saveSettings(data string) error {
+func (o *k8s) saveSettings(data map[string]namespaceConfig) error {
+	jsonData, err := toJSON(data)
+	if err != nil {
+		return fmt.Errorf("Unable to convert settings to JSON: %v", err)
+	}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "podreaper-config"},
-		Data:       map[string]string{"config": data},
+		Data:       map[string]string{"config": jsonData},
 	}
-	_, err := o.clientset.CoreV1().ConfigMaps("podreaper").Update(cm)
+	_, err = o.clientset.CoreV1().ConfigMaps("podreaper").Update(cm)
 	if err != nil {
 		_, err := o.clientset.CoreV1().ConfigMaps("podreaper").Create(cm)
 		return err
 	}
 	return nil
+}
+
+func toJSON(settings map[string]namespaceConfig) (string, error) {
+	result, err := json.Marshal(settings)
+	return string(result), err
+}
+
+func fromJSON(data string) (map[string]namespaceConfig, error) {
+	result := map[string]namespaceConfig{}
+	err := json.Unmarshal([]byte(data), &result)
+	return result, err
 }

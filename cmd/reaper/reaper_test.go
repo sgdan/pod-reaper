@@ -64,3 +64,43 @@ func TestJSON(t *testing.T) {
 		t.Fatalf("JSON conversions failed\nExpected: %s\nActual: %s", example, restored)
 	}
 }
+
+// Can't test deletePods because fake client doesn't support DeleteCollection
+// func TestPods(t *testing.T) {
+// 	k8s := newTestSimpleK8s()
+// 	defPods := k8s.clientset.CoreV1().Pods("default")
+
+// 	// start with no pods
+// 	pods, _ := defPods.List(metav1.ListOptions{})
+// 	if len(pods.Items) != 0 {
+// 		t.Fatalf("Should be no pods initially")
+// 	}
+
+// 	// create some pods
+// 	names := [3]string{"p1", "p2", "p3"}
+// 	for _, name := range names {
+// 		pod := &core.Pod{
+// 			ObjectMeta: metav1.ObjectMeta{
+// 				Name: name,
+// 			},
+// 			Spec: core.PodSpec{
+// 				Containers: []core.Container{
+// 					{
+// 						Name:  "nginx",
+// 						Image: "nginx",
+// 					},
+// 				},
+// 			},
+// 		}
+// 		defPods.Create(pod)
+// 	}
+// 	pods, _ = defPods.List(metav1.ListOptions{})
+// 	if len(pods.Items) != 3 {
+// 		t.Fatalf("Should be 3 pods")
+// 	}
+
+// 	defPods.DeleteCollection(&metav1.DeleteOptions{}, metav1.ListOptions{})
+// 	pods, _ = defPods.List(metav1.ListOptions{})
+// 	n := len(pods.Items)
+// 	log.Printf("length: %x", n)
+// }

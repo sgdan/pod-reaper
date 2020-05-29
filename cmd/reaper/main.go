@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html"
@@ -14,6 +15,32 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+type namespaceConfig struct {
+	AutoStartHour *int   `json:"autoStartHour"`
+	LastStarted   uint64 `json:"lastStarted"`
+}
+
+type status struct {
+	Clock      string            `json:"clock"`
+	Namespaces []namespaceStatus `json:"namespaces"`
+}
+
+type namespaceStatus struct {
+	// used by UI frontend
+	Name string `json:"name"`
+	// HasDownQuota  bool   `json:"hasDownQuota"`
+	// CanExtend     bool   `json:"canExtend"`
+	// MemUsed       int    `json:"memUsed"`
+	// MemLimit      int    `json:"memLimit"`
+	// AutoStartHour *int   `json:"autoStartHour"`
+	// Remaining     string `json:"remaining"`
+
+	// backend only
+	// hasResourceQuota bool
+	// lastScheduled ???
+	// lastStarted uint64
+}
 
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
@@ -74,6 +101,26 @@ func main() {
 
 	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hi")
+	})
+
+	// create status channel
+	emptyStatus := status{
+		Clock:      "XX:YY GMT",
+		Namespaces: []namespaceStatus{},
+	}
+	emptyStatusString, _ := json.Marshal(emptyStatus)
+	statusChannel := make(chan string)
+	go func() {
+		current := string(emptyStatusString)
+		for {
+			select {
+			case statusChannel <- current:
+			}
+		}
+	}()
+
+	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, <-statusChannel)
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))

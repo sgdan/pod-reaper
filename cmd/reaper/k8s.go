@@ -13,11 +13,6 @@ type k8s struct {
 	clientset kubernetes.Interface
 }
 
-type namespaceConfig struct {
-	AutoStartHour *int   `json:"autoStartHour"`
-	LastStarted   uint64 `json:"lastStarted"`
-}
-
 func (o *k8s) getVersion() (string, error) {
 	version, err := o.clientset.Discovery().ServerVersion()
 	if err != nil {

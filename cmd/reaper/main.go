@@ -8,10 +8,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -69,31 +68,8 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	cluster := k8s{}
-	cluster.clientset = clientset
-
-	// pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-	fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-
-	// Examples for error handling:
-	// - Use helper functions like e.g. errors.IsNotFound()
-	// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
-	namespace := "default"
-	pod := "example-xxxxx"
-	_, err = clientset.CoreV1().Pods(namespace).Get(pod, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		fmt.Printf("Pod %s in namespace %s not found\n", pod, namespace)
-	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-		fmt.Printf("Error getting pod %s in namespace %s: %v\n",
-			pod, namespace, statusError.ErrStatus.Message)
-	} else if err != nil {
-		panic(err.Error())
-	} else {
-		fmt.Printf("Found pod %s in namespace %s\n", pod, namespace)
+	cluster := k8s{
+		clientset: clientset,
 	}
 
 	// Updated namespace statuses will be written to the update channel
@@ -114,9 +90,20 @@ func main() {
 			case statusChannel <- current:
 			case update := <-updates:
 				nsStatuses[update.Name] = update
+
+				// create sorted list of keys
+				keys := make([]string, len(nsStatuses))
+				i := 0
+				for key := range nsStatuses {
+					keys[i] = key
+					i++
+				}
+				sort.Strings(keys)
+
+				// add namespaces in sorted key order
 				values := make([]namespaceStatus, len(nsStatuses))
-				for _, next := range nsStatuses {
-					values = append(values, next)
+				for index, key := range keys {
+					values[index] = nsStatuses[key]
 				}
 				newStatus := status{
 					Clock:      "newclock",
@@ -128,26 +115,18 @@ func main() {
 		}
 	}()
 
-	// Maintain a channel for each live namespace
-	// namespaces := make(map[string]chan bool)
-
 	// Update namespaces in the background
 	go func() {
 		nsTick := time.Tick(5 * time.Second)
-		tick := time.Tick(3 * time.Second)
-		count := 1
 		for {
 			select {
 			case <-nsTick:
 				namespaces, _ := cluster.getNamespaces()
-				log.Printf("namespaces: %v", namespaces)
-				log.Printf("no. namespaces: %v", len(namespaces))
-			case <-tick:
-				//fmt.Println("namespaces:", len(namespaces))
-				updates <- namespaceStatus{
-					Name: fmt.Sprintf("test-%v", count),
+				for _, next := range namespaces {
+					updates <- namespaceStatus{
+						Name: next,
+					}
 				}
-				count++
 			}
 		}
 	}()

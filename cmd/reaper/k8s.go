@@ -81,3 +81,16 @@ func (o *k8s) deletePods(namespace string) error {
 	}
 	return nil
 }
+
+func (o *k8s) getNamespaces() ([]string, error) {
+	nsList, err := o.clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list namepsaces: %v", err)
+	}
+	items := nsList.Items
+	result := make([]string, len(items))
+	for _, next := range items {
+		result = append(result, next.ObjectMeta.Name)
+	}
+	return result, nil
+}

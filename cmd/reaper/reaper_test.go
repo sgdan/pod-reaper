@@ -24,6 +24,20 @@ func TestNamespaceExists(t *testing.T) {
 	}
 }
 
+func TestNamespaces(t *testing.T) {
+	k8s := newTestSimpleK8s()
+	namespaces, _ := k8s.getNamespaces()
+	if len(namespaces) != 0 {
+		t.Fatal("should not be any namespaces")
+	}
+	k8s.createNamespace("one")
+	k8s.createNamespace("two")
+	namespaces, _ = k8s.getNamespaces()
+	if !contains(namespaces, "one") || !contains(namespaces, "two") {
+		t.Fatal("namespaces 'one' and 'two' should be included")
+	}
+}
+
 func TestSettings(t *testing.T) {
 	k8s := newTestSimpleK8s()
 
@@ -63,6 +77,15 @@ func TestJSON(t *testing.T) {
 	if example != restored {
 		t.Fatalf("JSON conversions failed\nExpected: %s\nActual: %s", example, restored)
 	}
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 // Can't test deletePods because fake client doesn't support DeleteCollection

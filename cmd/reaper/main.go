@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"html"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,7 +82,6 @@ func main() {
 	// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
 	namespace := "default"
 	pod := "example-xxxxx"
-	// _, err = clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
 	_, err = clientset.CoreV1().Pods(namespace).Get(pod, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		fmt.Printf("Pod %s in namespace %s not found\n", pod, namespace)
@@ -95,15 +94,16 @@ func main() {
 		fmt.Printf("Found pod %s in namespace %s\n", pod, namespace)
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
-	})
+	// Updated namespace statuses will be written to the update channel
+	updates := make(chan namespaceStatus)
+	nsStatuses := make(map[string]namespaceStatus)
+	// go func() {
+	// 	for {
+	// 		select {}
+	// 	}
+	// }()
 
-	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hi")
-	})
-
-	// create status channel
+	// Serve status from a channel
 	emptyStatus := status{
 		Clock:      "XX:YY GMT",
 		Namespaces: []namespaceStatus{},
@@ -115,14 +115,45 @@ func main() {
 		for {
 			select {
 			case statusChannel <- current:
+			case update := <-updates:
+				nsStatuses[update.Name] = update
+				values := make([]namespaceStatus, len(nsStatuses))
+				for _, next := range nsStatuses {
+					values = append(values, next)
+				}
+				newStatus := status{
+					Clock:      "newclock",
+					Namespaces: values,
+				}
+				newStatusString, _ := json.Marshal(newStatus)
+				current = string(newStatusString)
+			}
+		}
+	}()
+
+	// Maintain a channel for each live namespace
+	// namespaces := make(map[string]chan bool)
+
+	// Update namespaces in the background
+	go func() {
+		tick := time.Tick(3 * time.Second)
+		count := 1
+		for {
+			select {
+			case <-tick:
+				//fmt.Println("namespaces:", len(namespaces))
+				updates <- namespaceStatus{
+					Name: fmt.Sprintf("test-%v", count),
+				}
+				count++
 			}
 		}
 	}()
 
 	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, <-statusChannel)
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
-
 }

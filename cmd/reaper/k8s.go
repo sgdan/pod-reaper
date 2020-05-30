@@ -89,8 +89,8 @@ func (o *k8s) getNamespaces() ([]string, error) {
 	}
 	items := nsList.Items
 	result := make([]string, len(items))
-	for _, next := range items {
-		result = append(result, next.ObjectMeta.Name)
+	for i, next := range items {
+		result[i] = next.ObjectMeta.Name
 	}
 	return result, nil
 }

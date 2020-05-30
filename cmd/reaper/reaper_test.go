@@ -33,6 +33,9 @@ func TestNamespaces(t *testing.T) {
 	k8s.createNamespace("one")
 	k8s.createNamespace("two")
 	namespaces, _ = k8s.getNamespaces()
+	if len(namespaces) != 2 {
+		t.Fatalf("should be 2 namespaces not %v", len(namespaces))
+	}
 	if !contains(namespaces, "one") || !contains(namespaces, "two") {
 		t.Fatal("namespaces 'one' and 'two' should be included")
 	}

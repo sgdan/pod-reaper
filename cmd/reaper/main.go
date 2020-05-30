@@ -69,6 +69,8 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+	cluster := k8s{}
+	cluster.clientset = clientset
 
 	// pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
@@ -97,11 +99,6 @@ func main() {
 	// Updated namespace statuses will be written to the update channel
 	updates := make(chan namespaceStatus)
 	nsStatuses := make(map[string]namespaceStatus)
-	// go func() {
-	// 	for {
-	// 		select {}
-	// 	}
-	// }()
 
 	// Serve status from a channel
 	emptyStatus := status{
@@ -136,10 +133,15 @@ func main() {
 
 	// Update namespaces in the background
 	go func() {
+		nsTick := time.Tick(5 * time.Second)
 		tick := time.Tick(3 * time.Second)
 		count := 1
 		for {
 			select {
+			case <-nsTick:
+				namespaces, _ := cluster.getNamespaces()
+				log.Printf("namespaces: %v", namespaces)
+				log.Printf("no. namespaces: %v", len(namespaces))
 			case <-tick:
 				//fmt.Println("namespaces:", len(namespaces))
 				updates <- namespaceStatus{

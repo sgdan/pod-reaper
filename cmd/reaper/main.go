@@ -11,9 +11,23 @@ import (
 	"sort"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+/*
+Specification contains default configuration for this app
+that can be overridden using environment variables.
+See https://github.com/kelseyhightower/envconfig
+
+Overriding env values for backwards compatibility with the
+previous Kotlin/Micronaut code.
+*/
+type Specification struct {
+	IgnoredNamespaces []string `default:"kube-system,kube-public,kube-node-lease,podreaper,docker" envconfig:"ignored_namespaces"`
+	ZoneID            string   `default:"UTC" envconfig:"zone_id"`
+}
 
 type namespaceConfig struct {
 	AutoStartHour *int   `json:"autoStartHour"`
@@ -49,6 +63,16 @@ func homeDir() string {
 }
 
 func main() {
+	// load the configuration
+	var s Specification
+	err := envconfig.Process("reaper", &s)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Printf("Zone ID: %v", s.ZoneID)
+	log.Printf("Ignored Namespaces: %v", s.IgnoredNamespaces)
+
+	// k8s connection info
 	var kubeconfig *string
 	if home := homeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -87,7 +111,10 @@ func main() {
 		current := string(emptyStatusString)
 		for {
 			select {
+			// send the current status to client
 			case statusChannel <- current:
+
+			// update current status
 			case update := <-updates:
 				nsStatuses[update.Name] = update
 

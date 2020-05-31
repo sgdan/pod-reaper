@@ -16,6 +16,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const TimeFormat = "15:04 MST"
+
 /*
 Specification contains default configuration for this app
 that can be overridden using environment variables.
@@ -99,6 +101,7 @@ func main() {
 	// Updated namespace statuses will be written to the update channel
 	updates := make(chan namespaceStatus)
 	nsStatuses := make(map[string]namespaceStatus)
+	tick := time.Tick(5 * time.Second) // update clock
 
 	// Serve status from a channel
 	emptyStatus := status{
@@ -109,35 +112,24 @@ func main() {
 	statusChannel := make(chan string)
 	go func() {
 		current := string(emptyStatusString)
+		now := time.Now().Format(TimeFormat)
 		for {
 			select {
 			// send the current status to client
 			case statusChannel <- current:
 
+			case <-tick:
+				newTime := time.Now().Format(TimeFormat)
+				if newTime != now {
+					now = newTime
+					current = updateStatus(nsStatuses, now)
+					log.Printf("Updated time to: %v", now)
+				}
+
 			// update current status
 			case update := <-updates:
 				nsStatuses[update.Name] = update
-
-				// create sorted list of keys
-				keys := make([]string, len(nsStatuses))
-				i := 0
-				for key := range nsStatuses {
-					keys[i] = key
-					i++
-				}
-				sort.Strings(keys)
-
-				// add namespaces in sorted key order
-				values := make([]namespaceStatus, len(nsStatuses))
-				for index, key := range keys {
-					values[index] = nsStatuses[key]
-				}
-				newStatus := status{
-					Clock:      "newclock",
-					Namespaces: values,
-				}
-				newStatusString, _ := json.Marshal(newStatus)
-				current = string(newStatusString)
+				current = updateStatus(nsStatuses, now)
 			}
 		}
 	}()
@@ -164,4 +156,28 @@ func main() {
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+// Update the JSON status to be returned to clients
+func updateStatus(statuses map[string]namespaceStatus, clock string) string {
+	// create sorted list of keys
+	keys := make([]string, len(statuses))
+	i := 0
+	for key := range statuses {
+		keys[i] = key
+		i++
+	}
+	sort.Strings(keys)
+
+	// add namespaces in sorted key order
+	values := make([]namespaceStatus, len(statuses))
+	for index, key := range keys {
+		values[index] = statuses[key]
+	}
+	newStatus := status{
+		Clock:      clock,
+		Namespaces: values,
+	}
+	newStatusString, _ := json.Marshal(newStatus)
+	return string(newStatusString)
 }

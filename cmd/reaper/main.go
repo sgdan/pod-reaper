@@ -16,7 +16,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-const TimeFormat = "15:04 MST"
+const timeFormat = "15:04 MST"
+const namespaceInterval = 5 // target interval between namespace updates
 
 /*
 Specification contains default configuration for this app
@@ -112,14 +113,14 @@ func main() {
 	statusChannel := make(chan string)
 	go func() {
 		current := string(emptyStatusString)
-		now := time.Now().Format(TimeFormat)
+		now := time.Now().Format(timeFormat)
 		for {
 			select {
 			// send the current status to client
 			case statusChannel <- current:
 
 			case <-tick:
-				newTime := time.Now().Format(TimeFormat)
+				newTime := time.Now().Format(timeFormat)
 				if newTime != now {
 					now = newTime
 					current = updateStatus(nsStatuses, now)
@@ -136,17 +137,18 @@ func main() {
 
 	// Update namespaces in the background
 	go func() {
-		nsTick := time.Tick(5 * time.Second)
 		for {
-			select {
-			case <-nsTick:
-				namespaces, _ := cluster.getNamespaces()
-				for _, next := range namespaces {
-					updates <- namespaceStatus{
-						Name: next,
-					}
+			started := time.Now().Unix()
+			namespaces, _ := cluster.getNamespaces()
+			log.Printf("Got namespaces: %v", namespaces)
+			for _, next := range namespaces {
+				if !contains(s.IgnoredNamespaces, next) {
+					updateNamespace(next, updates)
 				}
 			}
+			elapsed := time.Now().Unix() - started
+			remaining := max(namespaceInterval-elapsed, 1)
+			time.Sleep(time.Duration(remaining) * time.Second)
 		}
 	}()
 
@@ -180,4 +182,27 @@ func updateStatus(statuses map[string]namespaceStatus, clock string) string {
 	}
 	newStatusString, _ := json.Marshal(newStatus)
 	return string(newStatusString)
+}
+
+func max(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func updateNamespace(name string, updates chan namespaceStatus) {
+	log.Printf("Updating namespace: %v", name)
+	updates <- namespaceStatus{
+		Name: name,
+	}
 }

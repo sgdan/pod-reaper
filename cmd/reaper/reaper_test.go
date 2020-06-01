@@ -82,15 +82,6 @@ func TestJSON(t *testing.T) {
 	}
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 // Can't test deletePods because fake client doesn't support DeleteCollection
 // func TestPods(t *testing.T) {
 // 	k8s := newTestSimpleK8s()

@@ -101,7 +101,7 @@ func main() {
 
 	// Updated namespace statuses will be written to the update channel
 	updates := make(chan namespaceStatus)
-	nsStatuses := make(map[string]namespaceStatus)
+	nsNames := make(chan []string)
 	tick := time.Tick(5 * time.Second) // update clock
 
 	// Serve status from a channel
@@ -114,6 +114,7 @@ func main() {
 	go func() {
 		current := string(emptyStatusString)
 		now := time.Now().Format(timeFormat)
+		nsStatuses := make(map[string]namespaceStatus)
 		for {
 			select {
 			// send the current status to client
@@ -131,6 +132,15 @@ func main() {
 			case update := <-updates:
 				nsStatuses[update.Name] = update
 				current = updateStatus(nsStatuses, now)
+
+			// remove namespaces if required
+			case valid := <-nsNames:
+				for key := range nsStatuses {
+					if !contains(valid, key) {
+						log.Printf("Removing namespace %v", key)
+						delete(nsStatuses, key)
+					}
+				}
 			}
 		}
 	}()
@@ -138,14 +148,21 @@ func main() {
 	// Update namespaces in the background
 	go func() {
 		for {
+			// create list of valid namespace names
 			started := time.Now().Unix()
 			namespaces, _ := cluster.getNamespaces()
 			log.Printf("Got namespaces: %v", namespaces)
+			valid := []string{}
 			for _, next := range namespaces {
 				if !contains(s.IgnoredNamespaces, next) {
+					valid = append(valid, next)
 					updateNamespace(next, updates)
 				}
 			}
+			log.Printf("valid: %v", valid)
+			nsNames <- valid
+
+			// sleep if updates finished within the interval
 			elapsed := time.Now().Unix() - started
 			remaining := max(namespaceInterval-elapsed, 1)
 			time.Sleep(time.Duration(remaining) * time.Second)

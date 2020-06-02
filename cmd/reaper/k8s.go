@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -93,4 +94,35 @@ func (o *k8s) getNamespaces() ([]string, error) {
 		result[i] = next.ObjectMeta.Name
 	}
 	return result, nil
+}
+
+func (o *k8s) getResourceQuota(ns string, rqName string) (*v1.ResourceQuota, error) {
+	return o.clientset.CoreV1().ResourceQuotas(ns).Get(rqName, metav1.GetOptions{})
+}
+
+func (o *k8s) hasResourceQuota(ns string, rqName string) bool {
+	_, err := o.getResourceQuota(ns, rqName)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity) error {
+	rq := &v1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{Name: rqName},
+		Spec: v1.ResourceQuotaSpec{
+			Hard: v1.ResourceList{
+				v1.ResourceMemory: limit,
+			},
+		},
+	}
+	rqs := o.clientset.CoreV1().ResourceQuotas(ns)
+	var result error
+	if o.hasResourceQuota(ns, rqName) {
+		_, result = rqs.Update(rq)
+	} else {
+		_, result = rqs.Create(rq)
+	}
+	return result
 }

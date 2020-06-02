@@ -201,25 +201,16 @@ func updateStatus(statuses map[string]namespaceStatus, clock string) string {
 	return string(newStatusString)
 }
 
-func max(a, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 func updateNamespace(name string, updates chan namespaceStatus) {
 	log.Printf("Updating namespace: %v", name)
-	updates <- namespaceStatus{
-		Name: name,
+	updated, err := loadNamespace(name)
+	if err != nil {
+		log.Printf("Unable to load namespace %v: %v", name, err)
+	} else {
+		updates <- updated
 	}
+}
+
+func loadNamespace(name string) (namespaceStatus, error) {
+	return namespaceStatus{Name: name}, nil
 }

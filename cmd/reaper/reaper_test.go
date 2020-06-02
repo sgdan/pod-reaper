@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -84,8 +83,10 @@ func TestJSON(t *testing.T) {
 	}
 }
 
-// Can't test deletePods because fake client doesn't support DeleteCollection
 func TestResourceQuotas(t *testing.T) {
+	q2 := resource.Quantity{Format: "2Gi"}
+	q5 := resource.Quantity{Format: "5Gi"}
+
 	// should be no resource quota initially
 	k8s := newTestSimpleK8s()
 	rq, _ := k8s.getResourceQuota("default", "testrq")
@@ -93,7 +94,8 @@ func TestResourceQuotas(t *testing.T) {
 		t.Fatalf("Not expecting to find resource quota: %v", rq)
 	}
 
-	err := k8s.setResourceQuota("default", "testrq", resource.Quantity{})
+	// create
+	err := k8s.setResourceQuota("default", "testrq", q2)
 	if err != nil {
 		t.Fatalf("Should be able to create resource quota: %v", err)
 	}
@@ -101,10 +103,34 @@ func TestResourceQuotas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Should be able to get resource quota: %v", err)
 	}
+	limit := rq.Spec.Hard.Memory().Format
+	if "2Gi" != limit {
+		t.Fatalf("Expected 2Gi limit but was %v", limit)
+	}
 
-	// log.Printf("rq: %v, err: %v", rq, err)
-	// log.Printf("err: %v", err)
-	log.Printf("rq: %v", rq)
+	// update
+	err = k8s.setResourceQuota("default", "testrq", q5)
+	if err != nil {
+		t.Fatalf("Should be able to update resource quota: %v", err)
+	}
+	rq, err = k8s.getResourceQuota("default", "testrq")
+	if err != nil {
+		t.Fatalf("Should be able to get resource quota: %v", err)
+	}
+	limit = rq.Spec.Hard.Memory().Format
+	if "5Gi" != limit {
+		t.Fatalf("Expected 5Gi limit but was %v", limit)
+	}
+
+	// delete
+	err = k8s.removeResourceQuota("default", "testrq")
+	if err != nil {
+		t.Fatalf("Should be able to delete resource quota: %v", err)
+	}
+	exists := k8s.hasResourceQuota("default", "testrq")
+	if exists {
+		t.Fatalf("Resource quota should no longer exist")
+	}
 }
 
 /*

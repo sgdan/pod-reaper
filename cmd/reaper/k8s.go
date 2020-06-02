@@ -126,3 +126,7 @@ func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity
 	}
 	return result
 }
+
+func (o *k8s) removeResourceQuota(ns string, rqName string) error {
+	return o.clientset.CoreV1().ResourceQuotas(ns).Delete(rqName, &metav1.DeleteOptions{})
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -130,4 +131,24 @@ func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity
 
 func (o *k8s) removeResourceQuota(ns string, rqName string) error {
 	return o.clientset.CoreV1().ResourceQuotas(ns).Delete(rqName, &metav1.DeleteOptions{})
+}
+
+// Create default limit range for namespace if it doesn't exist
+func (o *k8s) checkLimitRange(ns string) {
+	lr := &v1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{Name: limitRangeName},
+		Spec: v1.LimitRangeSpec{
+			Limits: []v1.LimitRangeItem{{
+				Type:           v1.LimitTypeContainer,
+				DefaultRequest: v1.ResourceList{v1.ResourceMemory: resource.MustParse(podRequest)},
+				Default:        v1.ResourceList{v1.ResourceMemory: resource.MustParse(podLimit)},
+			}},
+		},
+	}
+	lrs := o.clientset.CoreV1().LimitRanges(ns)
+	_, err := lrs.Get(limitRangeName, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Creating default limit range for %v", ns)
+		lrs.Create(lr)
+	}
 }

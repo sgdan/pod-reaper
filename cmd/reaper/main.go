@@ -24,6 +24,9 @@ const quotaName = "reaper-quota"
 const downQuotaName = "reaper-down-quota"
 const bytesInGi = 1024 * 1024 * 1024
 const defaultQuota = 10 * bytesInGi
+const limitRangeName = "reaper-limit"
+const podRequest = "512Mi"
+const podLimit = "512Mi"
 
 /*
 Specification contains default configuration for this app
@@ -213,6 +216,7 @@ func updateStatus(statuses map[string]namespaceStatus, clock string) string {
 
 func updateNamespace(name string, updates chan namespaceStatus, rq *v1.ResourceQuota, cluster k8s) {
 	log.Printf("Updating namespace: %v", name)
+	cluster.checkLimitRange(name)
 	updated, err := loadNamespace(name, rq, cluster)
 	if err != nil {
 		log.Printf("Unable to load namespace %v: %v", name, err)
@@ -241,7 +245,6 @@ func checkQuota(namespace string, cluster k8s) (*v1.ResourceQuota, error) {
 	quota, err := cluster.getResourceQuota(namespace, quotaName)
 	if err != nil {
 		log.Printf("Creating default quota for %v", namespace)
-		// value := resource.NewScaledQuantity(defaultQuota, resource.Giga)
 		value := resource.NewQuantity(defaultQuota, resource.Format("BinarySI"))
 		quota, err = cluster.setResourceQuota(namespace, quotaName, *value)
 		if err != nil {

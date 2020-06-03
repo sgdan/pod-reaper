@@ -11,6 +11,7 @@ RUN go mod download
 COPY cmd ./cmd
 RUN go build -o reaper ./cmd/reaper
 # CMD ls -alh && cat go.mod
+# ENV ZONE_ID Asia/Shanghai
 CMD ["/go/src/reaper"]
 
 

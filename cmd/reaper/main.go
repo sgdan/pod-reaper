@@ -83,6 +83,11 @@ func main() {
 	}
 	log.Printf("Zone ID: %v", s.ZoneID)
 	log.Printf("Ignored Namespaces: %v", s.IgnoredNamespaces)
+	location, err := time.LoadLocation(s.ZoneID)
+	if err != nil {
+		log.Fatalf("Invalid Zone ID: %v", err)
+	}
+	log.Printf("Time Zone: %v", location)
 
 	// k8s connection info
 	var kubeconfig *string
@@ -122,7 +127,7 @@ func main() {
 	statusChannel := make(chan string)
 	go func() {
 		current := string(emptyStatusString)
-		now := time.Now().Format(timeFormat)
+		now := time.Now().In(location).Format(timeFormat)
 		nsStatuses := make(map[string]namespaceStatus)
 		for {
 			select {
@@ -130,7 +135,7 @@ func main() {
 			case statusChannel <- current:
 
 			case <-tick:
-				newTime := time.Now().Format(timeFormat)
+				newTime := time.Now().In(location).Format(timeFormat)
 				if newTime != now {
 					now = newTime
 					current = updateStatus(nsStatuses, now)

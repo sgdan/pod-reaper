@@ -12,12 +12,18 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 const timeFormat = "15:04 MST"
 const namespaceInterval = 5 // target interval between namespace updates
+const quotaName = "reaper-quota"
+const downQuotaName = "reaper-down-quota"
+const bytesInGi = 1024 * 1024 * 1024
+const defaultQuota = 10 * bytesInGi
 
 /*
 Specification contains default configuration for this app
@@ -44,11 +50,11 @@ type status struct {
 
 type namespaceStatus struct {
 	// used by UI frontend
-	Name string `json:"name"`
-	// HasDownQuota  bool   `json:"hasDownQuota"`
+	Name         string `json:"name"`
+	HasDownQuota bool   `json:"hasDownQuota"`
 	// CanExtend     bool   `json:"canExtend"`
-	// MemUsed       int    `json:"memUsed"`
-	// MemLimit      int    `json:"memLimit"`
+	MemUsed  int `json:"memUsed"`
+	MemLimit int `json:"memLimit"`
 	// AutoStartHour *int   `json:"autoStartHour"`
 	// Remaining     string `json:"remaining"`
 
@@ -156,7 +162,11 @@ func main() {
 			for _, next := range namespaces {
 				if !contains(s.IgnoredNamespaces, next) {
 					valid = append(valid, next)
-					updateNamespace(next, updates)
+					quota, err := checkQuota(next, cluster)
+					if err != nil {
+						log.Printf("Unable to check quota for %v: %v", next, err)
+					}
+					updateNamespace(next, updates, quota, cluster)
 				}
 			}
 			log.Printf("valid: %v", valid)
@@ -201,9 +211,9 @@ func updateStatus(statuses map[string]namespaceStatus, clock string) string {
 	return string(newStatusString)
 }
 
-func updateNamespace(name string, updates chan namespaceStatus) {
+func updateNamespace(name string, updates chan namespaceStatus, rq *v1.ResourceQuota, cluster k8s) {
 	log.Printf("Updating namespace: %v", name)
-	updated, err := loadNamespace(name)
+	updated, err := loadNamespace(name, rq, cluster)
 	if err != nil {
 		log.Printf("Unable to load namespace %v: %v", name, err)
 	} else {
@@ -211,6 +221,32 @@ func updateNamespace(name string, updates chan namespaceStatus) {
 	}
 }
 
-func loadNamespace(name string) (namespaceStatus, error) {
-	return namespaceStatus{Name: name}, nil
+func loadNamespace(name string, rq *v1.ResourceQuota, cluster k8s) (namespaceStatus, error) {
+	memUsed := int64(0)
+	memLimit := int64(10)
+	if rq != nil {
+		memUsed = rq.Status.Used.Memory().Value() / bytesInGi
+		memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
+	}
+	return namespaceStatus{
+		Name:         name,
+		HasDownQuota: cluster.hasResourceQuota(name, downQuotaName),
+		MemUsed:      int(memUsed),
+		MemLimit:     int(memLimit),
+	}, nil
+}
+
+// Check if there's a quota for the namespace, create one if not
+func checkQuota(namespace string, cluster k8s) (*v1.ResourceQuota, error) {
+	quota, err := cluster.getResourceQuota(namespace, quotaName)
+	if err != nil {
+		log.Printf("Creating default quota for %v", namespace)
+		// value := resource.NewScaledQuantity(defaultQuota, resource.Giga)
+		value := resource.NewQuantity(defaultQuota, resource.Format("BinarySI"))
+		quota, err = cluster.setResourceQuota(namespace, quotaName, *value)
+		if err != nil {
+			log.Printf("Unable to create quota for %v: %v", namespace, err)
+		}
+	}
+	return quota, err
 }

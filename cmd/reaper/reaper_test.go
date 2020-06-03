@@ -95,7 +95,7 @@ func TestResourceQuotas(t *testing.T) {
 	}
 
 	// create
-	err := k8s.setResourceQuota("default", "testrq", q2)
+	_, err := k8s.setResourceQuota("default", "testrq", q2)
 	if err != nil {
 		t.Fatalf("Should be able to create resource quota: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestResourceQuotas(t *testing.T) {
 	}
 
 	// update
-	err = k8s.setResourceQuota("default", "testrq", q5)
+	_, err = k8s.setResourceQuota("default", "testrq", q5)
 	if err != nil {
 		t.Fatalf("Should be able to update resource quota: %v", err)
 	}

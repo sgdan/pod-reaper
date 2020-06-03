@@ -108,7 +108,7 @@ func (o *k8s) hasResourceQuota(ns string, rqName string) bool {
 	return true
 }
 
-func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity) error {
+func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity) (*v1.ResourceQuota, error) {
 	rq := &v1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: rqName},
 		Spec: v1.ResourceQuotaSpec{
@@ -118,13 +118,14 @@ func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity
 		},
 	}
 	rqs := o.clientset.CoreV1().ResourceQuotas(ns)
-	var result error
+	var result *v1.ResourceQuota
+	var err error
 	if o.hasResourceQuota(ns, rqName) {
-		_, result = rqs.Update(rq)
+		result, err = rqs.Update(rq)
 	} else {
-		_, result = rqs.Create(rq)
+		result, err = rqs.Create(rq)
 	}
-	return result
+	return result, err
 }
 
 func (o *k8s) removeResourceQuota(ns string, rqName string) error {

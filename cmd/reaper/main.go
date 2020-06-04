@@ -27,6 +27,7 @@ const defaultQuota = 10 * bytesInGi
 const limitRangeName = "reaper-limit"
 const podRequest = "512Mi"
 const podLimit = "512Mi"
+const window = 8 // hours in uptime window
 
 /*
 Specification contains default configuration for this app

@@ -174,3 +174,30 @@ func TestPods(t *testing.T) {
 	log.Printf("length: %x", n)
 }
 */
+
+func TestRemaining(t *testing.T) {
+	m := int64(60 * 1000) // millis in minute
+	start := int64(1573261444114)
+	stop := start + 8*60*m // 8 hrs after start
+
+	check("", remaining(0, stop), t)
+	check("", remaining(stop-m+1, start), t)
+	check("1m", remaining(start, stop-m), t)
+	check("5m", remaining(start, stop-5*m), t)
+	check("10m", remaining(start, stop-10*m), t)
+	check("1h 03m", remaining(start, stop-63*m), t)
+	check("7h 59m", remaining(start, start+m), t)
+	check("7h 59m", remaining(start, start+1), t)
+	check("", remaining(start, start), t)
+	check("", remaining(start, start-20*m), t)
+}
+
+func check(expected string, actual string, t *testing.T) {
+	if expected != actual {
+		t.Fatalf("Expected '%s' but was '%s'", expected, actual)
+	}
+}
+
+func remaining(lastStarted int64, now int64) string {
+	return remainingTime(remainingSeconds(lastStarted, now))
+}

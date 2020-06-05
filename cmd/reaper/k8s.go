@@ -39,12 +39,13 @@ func (o *k8s) getConfigMap(name string) (*v1.ConfigMap, error) {
 	return cm, err
 }
 
-func (o *k8s) getSettings() (string, error) {
+func (o *k8s) getSettings() (map[string]namespaceConfig, error) {
 	cm, err := o.getConfigMap("podreaper-config")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return cm.Data["config"], nil
+	result, err := fromJSON(cm.Data["config"])
+	return result, err
 }
 
 func (o *k8s) saveSettings(data map[string]namespaceConfig) error {

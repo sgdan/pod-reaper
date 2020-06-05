@@ -56,9 +56,9 @@ type namespaceStatus struct {
 	// used by UI frontend
 	Name         string `json:"name"`
 	HasDownQuota bool   `json:"hasDownQuota"`
-	// CanExtend     bool   `json:"canExtend"`
-	MemUsed  int `json:"memUsed"`
-	MemLimit int `json:"memLimit"`
+	CanExtend    bool   `json:"canExtend"`
+	MemUsed      int    `json:"memUsed"`
+	MemLimit     int    `json:"memLimit"`
 	// AutoStartHour *int   `json:"autoStartHour"`
 	// Remaining     string `json:"remaining"`
 
@@ -127,6 +127,11 @@ func main() {
 	emptyStatusString, _ := json.Marshal(emptyStatus)
 	statusChannel := make(chan string)
 	go func() {
+		settings, err := cluster.getSettings()
+		if err != nil {
+			settings = map[string]namespaceConfig{}
+		}
+		log.Printf("settings, err: %v, %v", settings, err)
 		current := string(emptyStatusString)
 		now := time.Now().In(location).Format(timeFormat)
 		nsStatuses := make(map[string]namespaceStatus)
@@ -175,7 +180,8 @@ func main() {
 					if err != nil {
 						log.Printf("Unable to check quota for %v: %v", next, err)
 					}
-					updateNamespace(next, updates, quota, cluster)
+					tempAutoStartHour := 9
+					updateNamespace(next, &tempAutoStartHour, updates, quota, cluster, location)
 				}
 			}
 			log.Printf("valid: %v", valid)
@@ -220,10 +226,10 @@ func updateStatus(statuses map[string]namespaceStatus, clock string) string {
 	return string(newStatusString)
 }
 
-func updateNamespace(name string, updates chan namespaceStatus, rq *v1.ResourceQuota, cluster k8s) {
+func updateNamespace(name string, autoStartHour *int, updates chan namespaceStatus, rq *v1.ResourceQuota, cluster k8s, zone *time.Location) {
 	log.Printf("Updating namespace: %v", name)
 	cluster.checkLimitRange(name)
-	updated, err := loadNamespace(name, rq, cluster)
+	updated, err := loadNamespace(name, autoStartHour, rq, cluster, zone)
 	if err != nil {
 		log.Printf("Unable to load namespace %v: %v", name, err)
 	} else {
@@ -231,18 +237,23 @@ func updateNamespace(name string, updates chan namespaceStatus, rq *v1.ResourceQ
 	}
 }
 
-func loadNamespace(name string, rq *v1.ResourceQuota, cluster k8s) (namespaceStatus, error) {
+func loadNamespace(name string, autoStartHour *int, rq *v1.ResourceQuota, cluster k8s, zone *time.Location) (namespaceStatus, error) {
 	memUsed := int64(0)
 	memLimit := int64(10)
 	if rq != nil {
 		memUsed = rq.Status.Used.Memory().Value() / bytesInGi
 		memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
 	}
+	// now := time.Now().In(zone)
+	// lastScheduled := lastScheduled(autoStartHour, now)
+	// lastStarted := max(prevStarted, lastScheduledMillis)
+	// remaining := remainingSeconds(lastStarted, now)
 	return namespaceStatus{
 		Name:         name,
 		HasDownQuota: cluster.hasResourceQuota(name, downQuotaName),
-		MemUsed:      int(memUsed),
-		MemLimit:     int(memLimit),
+		// CanExtend:    remaining < (window-1)*60*60,
+		MemUsed:  int(memUsed),
+		MemLimit: int(memLimit),
 	}, nil
 }
 

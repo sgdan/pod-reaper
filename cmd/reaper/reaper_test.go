@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"reflect"
 	"testing"
 	"time"
 
@@ -48,8 +48,8 @@ func TestSettings(t *testing.T) {
 	k8s := newTestSimpleK8s()
 
 	// settings should not exist yet
-	settings, _ := k8s.getSettings()
-	if settings != "" {
+	_, err := k8s.getSettings()
+	if err == nil {
 		t.Fatal("settings should not exist")
 	}
 
@@ -68,10 +68,9 @@ func TestSettings(t *testing.T) {
 
 	// save settings, then retrieve and check
 	k8s.saveSettings(example)
-	settings, _ = k8s.getSettings()
-	expected, _ := toJSON(example)
-	if settings != expected {
-		t.Fatalf("Save settings failed\nExpected: %s\nActual: %s", expected, settings)
+	settings, _ := k8s.getSettings()
+	if !reflect.DeepEqual(settings, example) {
+		t.Fatalf("Save settings failed\nExpected: %v\nActual: %v", example, settings)
 	}
 }
 
@@ -211,13 +210,8 @@ func remaining(lastStarted int64, now int64) string {
 }
 
 func TestAutoStart(t *testing.T) {
-	now := time.Now()
-	log.Printf("now: %v", now.Format(time.RFC3339))
-	// format := "2012-11-01T22:08"
 	wed8pm := toTime("2019-11-13T20:00:00Z", t)
-	log.Printf("wed8pm: %v", wed8pm.Format(time.RFC3339))
 	wedAfter8pm := toTime("2019-11-13T20:32:00Z", t)
-	// val started = mostRecent(wed8pm, toZDT(0, ZoneId.systemDefault()))
 
 	// something is always more recent than nil
 	check("0001-01-01T00:00:00Z", toString(mostRecent(nil, time.Time{})), t)

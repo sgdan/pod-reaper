@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -28,45 +26,7 @@ const limitRangeName = "reaper-limit"
 const podRequest = "512Mi"
 const podLimit = "512Mi"
 const window = 8 // hours in uptime window
-
-/*
-Specification contains default configuration for this app
-that can be overridden using environment variables.
-See https://github.com/kelseyhightower/envconfig
-
-Overriding env values for backwards compatibility with the
-previous Kotlin/Micronaut code.
-*/
-type Specification struct {
-	IgnoredNamespaces []string `default:"kube-system,kube-public,kube-node-lease,podreaper,docker" envconfig:"ignored_namespaces"`
-	ZoneID            string   `default:"UTC" envconfig:"zone_id"`
-}
-
-type namespaceConfig struct {
-	AutoStartHour *int   `json:"autoStartHour"`
-	LastStarted   uint64 `json:"lastStarted"`
-}
-
-type status struct {
-	Clock      string            `json:"clock"`
-	Namespaces []namespaceStatus `json:"namespaces"`
-}
-
-type namespaceStatus struct {
-	// used by UI frontend
-	Name         string `json:"name"`
-	HasDownQuota bool   `json:"hasDownQuota"`
-	CanExtend    bool   `json:"canExtend"`
-	MemUsed      int    `json:"memUsed"`
-	MemLimit     int    `json:"memLimit"`
-	// AutoStartHour *int   `json:"autoStartHour"`
-	// Remaining     string `json:"remaining"`
-
-	// backend only
-	// hasResourceQuota bool
-	// lastScheduled ???
-	// lastStarted uint64
-}
+const configMapName = "podreaper-goconfig"
 
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
@@ -77,14 +37,14 @@ func homeDir() string {
 
 func main() {
 	// load the configuration
-	var s Specification
-	err := envconfig.Process("reaper", &s)
+	var spec Specification
+	err := envconfig.Process("reaper", &spec)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	log.Printf("Zone ID: %v", s.ZoneID)
-	log.Printf("Ignored Namespaces: %v", s.IgnoredNamespaces)
-	location, err := time.LoadLocation(s.ZoneID)
+	log.Printf("Zone ID: %v", spec.ZoneID)
+	log.Printf("Ignored Namespaces: %v", spec.IgnoredNamespaces)
+	location, err := time.LoadLocation(spec.ZoneID)
 	if err != nil {
 		log.Fatalf("Invalid Zone ID: %v", err)
 	}
@@ -114,56 +74,53 @@ func main() {
 		clientset: clientset,
 	}
 
-	// Updated namespace statuses will be written to the update channel
-	updates := make(chan namespaceStatus)
-	nsNames := make(chan []string)
-	tick := time.Tick(5 * time.Second) // update clock
+	// Create state
+	s := newState(*location, spec.IgnoredNamespaces)
+	// updates := make(chan namespaceStatus)
+	// nsNames := make(chan []string)
 
 	// Serve status from a channel
-	emptyStatus := status{
-		Clock:      "XX:YY GMT",
-		Namespaces: []namespaceStatus{},
-	}
-	emptyStatusString, _ := json.Marshal(emptyStatus)
-	statusChannel := make(chan string)
-	go func() {
-		settings, err := cluster.getSettings()
-		if err != nil {
-			settings = map[string]namespaceConfig{}
-		}
-		log.Printf("settings, err: %v, %v", settings, err)
-		current := string(emptyStatusString)
-		now := time.Now().In(location).Format(timeFormat)
-		nsStatuses := make(map[string]namespaceStatus)
-		for {
-			select {
-			// send the current status to client
-			case statusChannel <- current:
+	// emptyStatusString, _ := json.Marshal(emptyStatus)
+	// statusChannel := make(chan string)
+	go maintainStatus(s)
+	// go func() {
+	// 	settings, err := cluster.getSettings()
+	// 	if err != nil {
+	// 		settings = map[string]namespaceConfig{}
+	// 	}
+	// 	log.Printf("settings, err: %v, %v", settings, err)
+	// 	current := string(emptyStatusString)
+	// 	now := time.Now().In(location).Format(timeFormat)
+	// 	nsStatuses := make(map[string]namespaceStatus)
+	// 	for {
+	// 		select {
+	// 		// send the current status to client
+	// 		case statusChannel <- current:
 
-			case <-tick:
-				newTime := time.Now().In(location).Format(timeFormat)
-				if newTime != now {
-					now = newTime
-					current = updateStatus(nsStatuses, now)
-					log.Printf("Updated time to: %v", now)
-				}
+	// 		case <-tick:
+	// 			newTime := time.Now().In(location).Format(timeFormat)
+	// 			if newTime != now {
+	// 				now = newTime
+	// 				current = updateStatus(nsStatuses, now)
+	// 				log.Printf("Updated time to: %v", now)
+	// 			}
 
-			// update current status
-			case update := <-updates:
-				nsStatuses[update.Name] = update
-				current = updateStatus(nsStatuses, now)
+	// 		// update current status
+	// 		case update := <-updates:
+	// 			nsStatuses[update.Name] = update
+	// 			current = updateStatus(nsStatuses, now)
 
-			// remove namespaces if required
-			case valid := <-nsNames:
-				for key := range nsStatuses {
-					if !contains(valid, key) {
-						log.Printf("Removing namespace %v", key)
-						delete(nsStatuses, key)
-					}
-				}
-			}
-		}
-	}()
+	// 		// remove namespaces if required
+	// 		case valid := <-nsNames:
+	// 			for key := range nsStatuses {
+	// 				if !contains(valid, key) {
+	// 					log.Printf("Removing namespace %v", key)
+	// 					delete(nsStatuses, key)
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }()
 
 	// Update namespaces in the background
 	go func() {
@@ -181,11 +138,11 @@ func main() {
 						log.Printf("Unable to check quota for %v: %v", next, err)
 					}
 					tempAutoStartHour := 9
-					updateNamespace(next, &tempAutoStartHour, updates, quota, cluster, location)
+					updateNamespace(next, &tempAutoStartHour, s.updateNs, quota, cluster, location)
 				}
 			}
 			log.Printf("valid: %v", valid)
-			nsNames <- valid
+			// nsNames <- valid
 
 			// sleep if updates finished within the interval
 			elapsed := time.Now().Unix() - started
@@ -196,37 +153,13 @@ func main() {
 
 	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, <-statusChannel)
+		fmt.Fprint(w, <-s.getStatus)
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// Update the JSON status to be returned to clients
-func updateStatus(statuses map[string]namespaceStatus, clock string) string {
-	// create sorted list of keys
-	keys := make([]string, len(statuses))
-	i := 0
-	for key := range statuses {
-		keys[i] = key
-		i++
-	}
-	sort.Strings(keys)
-
-	// add namespaces in sorted key order
-	values := make([]namespaceStatus, len(statuses))
-	for index, key := range keys {
-		values[index] = statuses[key]
-	}
-	newStatus := status{
-		Clock:      clock,
-		Namespaces: values,
-	}
-	newStatusString, _ := json.Marshal(newStatus)
-	return string(newStatusString)
-}
-
-func updateNamespace(name string, autoStartHour *int, updates chan namespaceStatus, rq *v1.ResourceQuota, cluster k8s, zone *time.Location) {
+func updateNamespace(name string, autoStartHour *int, updates chan nsStatus, rq *v1.ResourceQuota, cluster k8s, zone *time.Location) {
 	log.Printf("Updating namespace: %v", name)
 	cluster.checkLimitRange(name)
 	updated, err := loadNamespace(name, autoStartHour, rq, cluster, zone)
@@ -237,7 +170,7 @@ func updateNamespace(name string, autoStartHour *int, updates chan namespaceStat
 	}
 }
 
-func loadNamespace(name string, autoStartHour *int, rq *v1.ResourceQuota, cluster k8s, zone *time.Location) (namespaceStatus, error) {
+func loadNamespace(name string, autoStartHour *int, rq *v1.ResourceQuota, cluster k8s, zone *time.Location) (nsStatus, error) {
 	memUsed := int64(0)
 	memLimit := int64(10)
 	if rq != nil {
@@ -248,7 +181,7 @@ func loadNamespace(name string, autoStartHour *int, rq *v1.ResourceQuota, cluste
 	// lastScheduled := lastScheduled(autoStartHour, now)
 	// lastStarted := max(prevStarted, lastScheduledMillis)
 	// remaining := remainingSeconds(lastStarted, now)
-	return namespaceStatus{
+	return nsStatus{
 		Name:         name,
 		HasDownQuota: cluster.hasResourceQuota(name, downQuotaName),
 		// CanExtend:    remaining < (window-1)*60*60,

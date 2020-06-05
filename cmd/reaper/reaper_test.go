@@ -55,12 +55,14 @@ func TestSettings(t *testing.T) {
 
 	// example settings
 	nineAm := int(9)
-	example := map[string]namespaceConfig{
-		"ns1": {
+	example := []nsConfig{
+		{
+			Name:          "ns1",
 			AutoStartHour: nil,
 			LastStarted:   0,
 		},
-		"ns2": {
+		{
+			Name:          "ns2",
 			AutoStartHour: &nineAm,
 			LastStarted:   1589668156345,
 		},
@@ -75,7 +77,7 @@ func TestSettings(t *testing.T) {
 }
 
 func TestJSON(t *testing.T) {
-	example := "{\"default\":{\"autoStartHour\":null,\"lastStarted\":1589668156345},\"ns1\":{\"autoStartHour\":9,\"lastStarted\":0}}"
+	example := "[{\"name\":\"default\",\"autoStartHour\":null,\"lastStarted\":1589668156345},{\"name\":\"ns1\",\"autoStartHour\":9,\"lastStarted\":0}]"
 	converted, _ := fromJSON(example)
 
 	restored, _ := toJSON(converted)

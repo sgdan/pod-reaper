@@ -39,8 +39,8 @@ func (o *k8s) getConfigMap(name string) (*v1.ConfigMap, error) {
 	return cm, err
 }
 
-func (o *k8s) getSettings() (map[string]namespaceConfig, error) {
-	cm, err := o.getConfigMap("podreaper-config")
+func (o *k8s) getSettings() ([]nsConfig, error) {
+	cm, err := o.getConfigMap(configMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -48,13 +48,13 @@ func (o *k8s) getSettings() (map[string]namespaceConfig, error) {
 	return result, err
 }
 
-func (o *k8s) saveSettings(data map[string]namespaceConfig) error {
+func (o *k8s) saveSettings(data []nsConfig) error {
 	jsonData, err := toJSON(data)
 	if err != nil {
 		return fmt.Errorf("Unable to convert settings to JSON: %v", err)
 	}
 	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "podreaper-config"},
+		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
 		Data:       map[string]string{"config": jsonData},
 	}
 	_, err = o.clientset.CoreV1().ConfigMaps("podreaper").Update(cm)
@@ -65,13 +65,13 @@ func (o *k8s) saveSettings(data map[string]namespaceConfig) error {
 	return nil
 }
 
-func toJSON(settings map[string]namespaceConfig) (string, error) {
+func toJSON(settings []nsConfig) (string, error) {
 	result, err := json.Marshal(settings)
 	return string(result), err
 }
 
-func fromJSON(data string) (map[string]namespaceConfig, error) {
-	result := map[string]namespaceConfig{}
+func fromJSON(data string) ([]nsConfig, error) {
+	result := []nsConfig{}
 	err := json.Unmarshal([]byte(data), &result)
 	return result, err
 }

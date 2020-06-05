@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/fake"
@@ -198,6 +200,53 @@ func check(expected string, actual string, t *testing.T) {
 	}
 }
 
+func checkInt(expected int, actual int, t *testing.T) {
+	if expected != actual {
+		t.Fatalf("Expected %v but was %v", expected, actual)
+	}
+}
+
 func remaining(lastStarted int64, now int64) string {
 	return remainingTime(remainingSeconds(lastStarted, now))
+}
+
+func TestAutoStart(t *testing.T) {
+	now := time.Now()
+	log.Printf("now: %v", now.Format(time.RFC3339))
+	// format := "2012-11-01T22:08"
+	wed8pm := toTime("2019-11-13T20:00:00Z", t)
+	log.Printf("wed8pm: %v", wed8pm.Format(time.RFC3339))
+	wedAfter8pm := toTime("2019-11-13T20:32:00Z", t)
+	// val started = mostRecent(wed8pm, toZDT(0, ZoneId.systemDefault()))
+
+	// something is always more recent than nil
+	check("0001-01-01T00:00:00Z", toString(mostRecent(nil, time.Time{})), t)
+
+	// wednesday is more recent than beginning of time
+	started := mostRecent(&wed8pm, time.Time{})
+	check("2019-11-13T20:00:00Z", toString(started), t)
+
+	// check lastScheduled
+	hour := 20
+	lsched := lastScheduled(&hour, wedAfter8pm)
+	check("2019-11-13T20:00:00Z", toString(*lsched), t)
+	hour = 17
+	lsched = lastScheduled(&hour, wedAfter8pm)
+	check("2019-11-13T17:00:00Z", toString(*lsched), t)
+
+	// check hoursFrom
+	checkInt(0, hoursFrom(started, wedAfter8pm), t)
+	checkInt(3, hoursFrom(*lsched, wedAfter8pm), t)
+}
+
+func toTime(value string, t *testing.T) time.Time {
+	result, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		t.Fatalf("Unable to parse time: %v", value)
+	}
+	return result
+}
+
+func toString(value time.Time) string {
+	return value.Format(time.RFC3339)
 }

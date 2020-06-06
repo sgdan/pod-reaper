@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -75,14 +76,56 @@ func main() {
 
 	// serve latest cached JSON status to clients
 	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if spec.CorsEnabled {
-			for _, origin := range spec.CorsOrigins {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-			}
+		if setHeaders(r.Method, spec, w, r) {
+			fmt.Fprint(w, <-s.getStatus)
 		}
-		fmt.Fprint(w, <-s.getStatus)
+	})
+	http.HandleFunc("/reaper/setMemLimit", func(w http.ResponseWriter, r *http.Request) {
+		if setHeaders(r.Method, spec, w, r) {
+			decoder := json.NewDecoder(r.Body)
+			var lr limitRequest
+			err := decoder.Decode(&lr)
+			log.Printf("setMemLimit: %v, %v", lr, err)
+			fmt.Fprint(w, <-s.getStatus)
+		}
+	})
+	http.HandleFunc("/reaper/setStartHour", func(w http.ResponseWriter, r *http.Request) {
+		if setHeaders(r.Method, spec, w, r) {
+			decoder := json.NewDecoder(r.Body)
+			var sr startRequest
+			err := decoder.Decode(&sr)
+			log.Printf("setStartHour: %v, %v", sr, err)
+			fmt.Fprint(w, <-s.getStatus)
+		}
+	})
+	http.HandleFunc("/reaper/extend", func(w http.ResponseWriter, r *http.Request) {
+		if setHeaders(r.Method, spec, w, r) {
+			decoder := json.NewDecoder(r.Body)
+			var sr startRequest
+			err := decoder.Decode(&sr)
+			log.Printf("extend: %v, %v", sr, err)
+			fmt.Fprint(w, <-s.getStatus)
+		}
 	})
 
 	log.Fatalf("Exit: %v", http.ListenAndServe(":8080", nil))
+}
+
+// Set headers based on CORS configuration
+// Return true if content can be returned (i.e. false for OPTIONS response)
+func setHeaders(method string, spec Specification, w http.ResponseWriter, r *http.Request) bool {
+	h := w.Header()
+	if spec.CorsEnabled {
+		for _, origin := range spec.CorsOrigins {
+			h.Set("Access-Control-Allow-Origin", origin)
+		}
+		if r.Method == "OPTIONS" {
+			h.Set("Access-Control-Allow-Methods", "POST")
+			h.Set("Access-Control-Allow-Headers", "content-type")
+			return false
+		}
+	} else {
+		h.Set("Content-Type", "application/json")
+	}
+	return true
 }

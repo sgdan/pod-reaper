@@ -41,3 +41,13 @@ type nsStatus struct {
 	// lastScheduled ???
 	// lastStarted uint64
 }
+
+type startRequest struct {
+	Namespace string `json:"namespace"`
+	StartHour *int   `json:"startHour"`
+}
+
+type limitRequest struct {
+	Namespace string `json:"namespace"`
+	Limit     int    `json:"limit"`
+}

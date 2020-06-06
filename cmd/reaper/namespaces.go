@@ -108,17 +108,19 @@ func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsStatus, error)
 		memUsed = rq.Status.Used.Memory().Value() / bytesInGi
 		memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
 	}
-	// now := time.Now().In(&s.timeZone)
-	// cfg := s.getConfigFor(name)
-	// lastScheduled := lastScheduled(cfg.AutoStartHour, now)
-	// lastStarted := max(cfg.LastStarted, lastScheduled)
-	// remaining := remainingSeconds(lastStarted, now)
+	cfg := s.getConfigFor(name)
+	now := time.Now().In(&s.timeZone)
+	lastScheduled := lastScheduled(cfg.AutoStartHour, now)
+	lastStarted := max(cfg.LastStarted, lastScheduled)
+	seconds := remainingSeconds(lastStarted, now.Unix())
 	return nsStatus{
-		Name:         name,
-		HasDownQuota: s.cluster.hasResourceQuota(name, downQuotaName),
-		// CanExtend:    remaining < (window-1)*60*60,
-		MemUsed:  int(memUsed),
-		MemLimit: int(memLimit),
+		Name:          name,
+		HasDownQuota:  s.cluster.hasResourceQuota(name, downQuotaName),
+		CanExtend:     seconds < (window-1)*60*60,
+		MemUsed:       int(memUsed),
+		MemLimit:      int(memLimit),
+		AutoStartHour: cfg.AutoStartHour,
+		Remaining:     remaining(seconds),
 	}, nil
 }
 

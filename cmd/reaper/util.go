@@ -50,16 +50,16 @@ func contains(s []string, e string) bool {
 
 // return same time as "now" but from most recent weekday, or nil
 // if no start hour has been specified
-func lastScheduled(startHour *int, now time.Time) *time.Time {
+func lastScheduled(startHour *int, now time.Time) int64 {
 	if startHour != nil {
 		last := weekday(withHour(now, *startHour))
 		if last.After(now) {
 			last = weekday(last.AddDate(0, 0, -1))
 		}
 		last = roundDownHour(last)
-		return &last
+		return last.Unix()
 	}
-	return nil
+	return 0
 }
 
 func withHour(t time.Time, hour int) time.Time {

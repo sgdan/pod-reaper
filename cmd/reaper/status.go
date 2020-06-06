@@ -9,13 +9,6 @@ import (
 
 // Maintain the status JSON that is served to clients
 func maintainStatus(s state) {
-
-	// settings, err := cluster.getSettings()
-	// if err != nil {
-	// 	settings = map[string]namespaceConfig{}
-	// }
-	// log.Printf("settings, err: %v, %v", settings, err)
-
 	emptyStatusString, _ := json.Marshal(status{})
 	status := string(emptyStatusString)
 	now := time.Now().In(&s.timeZone).Format(timeFormat)
@@ -26,9 +19,6 @@ func maintainStatus(s state) {
 		select {
 		// send the current status to client
 		case s.getStatus <- status:
-
-		// send snapshot of namespaces to caller
-		case s.getNamespaces <- namespaces:
 
 		// update the time displayed in web UI
 		case <-tick:

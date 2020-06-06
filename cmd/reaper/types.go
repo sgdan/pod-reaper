@@ -16,7 +16,7 @@ type Specification struct {
 type nsConfig struct {
 	Name          string `json:"name"`
 	AutoStartHour *int   `json:"autoStartHour"`
-	LastStarted   uint64 `json:"lastStarted"`
+	LastStarted   int64  `json:"lastStarted"`
 }
 
 type status struct {
@@ -26,13 +26,13 @@ type status struct {
 
 type nsStatus struct {
 	// used by UI frontend
-	Name         string `json:"name"`
-	HasDownQuota bool   `json:"hasDownQuota"`
-	CanExtend    bool   `json:"canExtend"`
-	MemUsed      int    `json:"memUsed"`
-	MemLimit     int    `json:"memLimit"`
-	// AutoStartHour *int   `json:"autoStartHour"`
-	// Remaining     string `json:"remaining"`
+	Name          string `json:"name"`
+	HasDownQuota  bool   `json:"hasDownQuota"`
+	CanExtend     bool   `json:"canExtend"`
+	MemUsed       int    `json:"memUsed"`
+	MemLimit      int    `json:"memLimit"`
+	AutoStartHour *int   `json:"autoStartHour"`
+	Remaining     string `json:"remaining"`
 
 	// backend only
 	// hasResourceQuota bool

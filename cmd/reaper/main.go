@@ -70,6 +70,7 @@ func main() {
 	}
 
 	s := newState(*location, spec.IgnoredNamespaces, k8s{clientset: clientset})
+	go maintainConfigs(s)
 	go maintainStatus(s)
 	go maintainNamespaces(s)
 

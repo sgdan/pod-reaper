@@ -225,14 +225,16 @@ func TestAutoStart(t *testing.T) {
 	// check lastScheduled
 	hour := 20
 	lsched := lastScheduled(&hour, wedAfter8pm)
-	check("2019-11-13T20:00:00Z", toString(*lsched), t)
+	lschedString := toString(time.Unix(lsched, 0).In(time.UTC))
+	check("2019-11-13T20:00:00Z", lschedString, t)
 	hour = 17
 	lsched = lastScheduled(&hour, wedAfter8pm)
-	check("2019-11-13T17:00:00Z", toString(*lsched), t)
+	lschedString = toString(time.Unix(lsched, 0).In(time.UTC))
+	check("2019-11-13T17:00:00Z", lschedString, t)
 
 	// check hoursFrom
 	checkInt(0, hoursFrom(started, wedAfter8pm), t)
-	checkInt(3, hoursFrom(*lsched, wedAfter8pm), t)
+	checkInt(3, hoursFrom(time.Unix(lsched, 0), wedAfter8pm), t)
 }
 
 func toTime(value string, t *testing.T) time.Time {

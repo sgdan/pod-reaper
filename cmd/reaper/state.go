@@ -46,3 +46,13 @@ func (s state) existingNamespaces() []string {
 	}
 	return result
 }
+
+func (s state) getConfigFor(ns string) nsConfig {
+	configs := <-s.getConfigs
+	for _, cfg := range configs {
+		if cfg.Name == ns {
+			return cfg
+		}
+	}
+	return nsConfig{} // return an empty one if existing not found
+}

@@ -23,9 +23,9 @@ func maintainNamespaces(s state) {
 		case ns := <-s.rmNs:
 			delete(tickers, ns)
 
-		case trigger := <-s.triggerNs:
-			log.Printf("Should update namespace: %v", trigger)
-			// updateNamespace(ns, s)
+		case ns := <-s.triggerNs:
+			// log.Printf("Should update namespace: %v", ns)
+			updateNamespace(ns, s)
 
 			// default:
 			// 	log.Printf("maintainNamespaces default!")
@@ -108,9 +108,10 @@ func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsStatus, error)
 		memUsed = rq.Status.Used.Memory().Value() / bytesInGi
 		memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
 	}
-	// now := time.Now().In(zone)
-	// lastScheduled := lastScheduled(autoStartHour, now)
-	// lastStarted := max(prevStarted, lastScheduledMillis)
+	// now := time.Now().In(&s.timeZone)
+	// cfg := s.getConfigFor(name)
+	// lastScheduled := lastScheduled(cfg.AutoStartHour, now)
+	// lastStarted := max(cfg.LastStarted, lastScheduled)
 	// remaining := remainingSeconds(lastStarted, now)
 	return nsStatus{
 		Name:         name,

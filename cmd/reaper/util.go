@@ -5,13 +5,12 @@ import (
 	"time"
 )
 
-// From millis to seconds
 func remainingSeconds(lastStarted int64, now int64) int64 {
-	return max(lastStarted+window*60*60*1000-now, 0) / 1000
+	return max(lastStarted+window*60*60-now, 0)
 }
 
 // Turn number of seconds into a readable string
-func remainingTime(s int64) string {
+func remaining(s int64) string {
 	m := s / 60
 	h := (m / 60) % window
 	if m <= 0 || m >= window*60 {

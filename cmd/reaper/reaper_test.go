@@ -179,20 +179,24 @@ func TestPods(t *testing.T) {
 */
 
 func TestRemaining(t *testing.T) {
-	m := int64(60 * 1000) // millis in minute
-	start := int64(1573261444114)
-	stop := start + 8*60*m // 8 hrs after start
+	start := time.Now().Unix() // unix time in seconds (int64)
+	m := int64(60)             // seconds in minute
+	stop := start + 8*60*m     // 8 hrs after start
 
-	check("", remaining(0, stop), t)
-	check("", remaining(stop-m+1, start), t)
-	check("1m", remaining(start, stop-m), t)
-	check("5m", remaining(start, stop-5*m), t)
-	check("10m", remaining(start, stop-10*m), t)
-	check("1h 03m", remaining(start, stop-63*m), t)
-	check("7h 59m", remaining(start, start+m), t)
-	check("7h 59m", remaining(start, start+1), t)
-	check("", remaining(start, start), t)
-	check("", remaining(start, start-20*m), t)
+	check("", rem(0, stop), t)
+	check("", rem(stop-m+1, start), t)
+	check("1m", rem(start, stop-m), t)
+	check("5m", rem(start, stop-5*m), t)
+	check("10m", rem(start, stop-10*m), t)
+	check("1h 03m", rem(start, stop-63*m), t)
+	check("7h 59m", rem(start, start+m), t)
+	check("7h 59m", rem(start, start+1), t)
+	check("", rem(start, start), t)
+	check("", rem(start, start-20*m), t)
+}
+
+func rem(start int64, stop int64) string {
+	return remaining(remainingSeconds(start, stop))
 }
 
 func check(expected string, actual string, t *testing.T) {
@@ -205,10 +209,6 @@ func checkInt(expected int, actual int, t *testing.T) {
 	if expected != actual {
 		t.Fatalf("Expected %v but was %v", expected, actual)
 	}
-}
-
-func remaining(lastStarted int64, now int64) string {
-	return remainingTime(remainingSeconds(lastStarted, now))
 }
 
 func TestAutoStart(t *testing.T) {

@@ -58,6 +58,7 @@ func checkNamespaces(tickers map[string](chan bool), s state) {
 	for _, ns := range valid {
 		if _, ok := tickers[ns]; !ok {
 			tickers[ns] = createTickerFor(ns, s)
+			s.cluster.checkLimitRange(ns)
 		}
 	}
 }

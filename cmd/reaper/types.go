@@ -11,6 +11,8 @@ previous Kotlin/Micronaut code.
 type Specification struct {
 	IgnoredNamespaces []string `default:"kube-system,kube-public,kube-node-lease,podreaper,docker" envconfig:"ignored_namespaces"`
 	ZoneID            string   `default:"UTC" envconfig:"zone_id"`
+	CorsEnabled       bool     `default:"true" envconfig:"cors_enabled"`
+	CorsOrigins       []string `default:"http://localhost:3000" envconfig:"cors_origins"`
 }
 
 type nsConfig struct {

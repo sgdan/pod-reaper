@@ -76,6 +76,11 @@ func main() {
 	// serve latest cached JSON status to clients
 	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if spec.CorsEnabled {
+			for _, origin := range spec.CorsOrigins {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
+		}
 		fmt.Fprint(w, <-s.getStatus)
 	})
 

@@ -18,7 +18,7 @@ func maintainStatus(s state) {
 
 	emptyStatusString, _ := json.Marshal(status{})
 	status := string(emptyStatusString)
-	now := time.Now().In(&s.TimeZone).Format(timeFormat)
+	now := time.Now().In(&s.timeZone).Format(timeFormat)
 	namespaces := make(map[string]nsStatus)
 	tick := time.Tick(5 * time.Second) // trigger clock updates
 
@@ -27,9 +27,12 @@ func maintainStatus(s state) {
 		// send the current status to client
 		case s.getStatus <- status:
 
+		// send snapshot of namespaces to caller
+		case s.getNamespaces <- namespaces:
+
 		// update the time displayed in web UI
 		case <-tick:
-			newTime := time.Now().In(&s.TimeZone).Format(timeFormat)
+			newTime := time.Now().In(&s.timeZone).Format(timeFormat)
 			if newTime != now {
 				now = newTime
 				status = updateStatus(namespaces, now)
@@ -55,6 +58,7 @@ func maintainStatus(s state) {
 			// 	}
 			// }
 		}
+
 	}
 }
 

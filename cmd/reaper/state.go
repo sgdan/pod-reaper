@@ -5,30 +5,44 @@ import (
 )
 
 type state struct {
-	TimeZone          time.Location
-	IgnoredNamespaces []string
+	timeZone          time.Location
+	ignoredNamespaces []string
+	cluster           k8s // access to the cluster
 
 	// changes and updates
 	updateNs       chan nsStatus // signal namespace updated
+	triggerNs      chan string   // signal that namespace needs to be updated
 	rmNs           chan string   // signal namespace removed
 	updateNsConfig chan nsConfig // signal namepsace config updated
-	rmNsConfig     chan string   // signal namespace config removed
 
 	// getting data
-	getStatus  chan string     // get the current status JSON
-	getConfigs chan []nsConfig // get the current namespace configs
+	getStatus     chan string              // get the current status JSON
+	getNamespaces chan map[string]nsStatus // get snapshot of current namespaces
+	getConfigs    chan []nsConfig          // get the current namespace configs
 }
 
-func newState(timeZone time.Location, ignoredNamespaces []string) state {
+func newState(tz time.Location, ignored []string, cluster k8s) state {
 	s := state{
-		TimeZone:          timeZone,
-		IgnoredNamespaces: ignoredNamespaces,
+		timeZone:          tz,
+		ignoredNamespaces: ignored,
+		cluster:           cluster,
 		updateNs:          make(chan nsStatus),
+		triggerNs:         make(chan string),
 		rmNs:              make(chan string),
 		updateNsConfig:    make(chan nsConfig),
-		rmNsConfig:        make(chan string),
 		getStatus:         make(chan string),
+		getNamespaces:     make(chan map[string]nsStatus),
 		getConfigs:        make(chan []nsConfig),
 	}
 	return s
+}
+
+// Get the names of the namespaces currently monitored
+func (s state) existingNamespaces() []string {
+	statuses := <-s.getNamespaces
+	result := []string{}
+	for key := range statuses {
+		result = append(result, key)
+	}
+	return result
 }

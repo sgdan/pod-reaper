@@ -16,9 +16,10 @@ func maintainNamespaces(s state) {
 	tickers := map[string](chan bool){}
 
 	checkNamespaces(tickers, s) // don't wait for first tick
+	tick := time.Tick(5 * time.Second)
 	for {
 		select {
-		case <-time.Tick(10 * time.Second):
+		case <-tick:
 			checkNamespaces(tickers, s)
 
 		case ns := <-s.triggerNs:
@@ -26,9 +27,9 @@ func maintainNamespaces(s state) {
 			if err != nil {
 				log.Printf("Unable to update namespace %v: %v", ns, err)
 				if !s.cluster.getExists(ns) {
+					log.Printf("Removing namespace: %v", ns)
 					tickers[ns] <- true
 					delete(tickers, ns)
-					log.Printf("Removing namespace: %v", ns)
 					s.rmNsConfig <- ns
 					s.rmNsStatus <- ns
 				}
@@ -52,10 +53,8 @@ func checkNamespaces(tickers map[string](chan bool), s state) {
 			valid = append(valid, next)
 		}
 	}
-	log.Printf("valid: %v", valid)
 
 	// Start tickers for any new namespaces
-	log.Printf("tickers: %v", tickers)
 	for _, ns := range valid {
 		if _, ok := tickers[ns]; !ok {
 			tickers[ns] = createTickerFor(ns, s)
@@ -71,7 +70,6 @@ func createTickerFor(name string, s state) chan bool {
 		for {
 			select {
 			case <-done:
-				log.Printf("Removed ticker for %v", name)
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -79,7 +77,6 @@ func createTickerFor(name string, s state) chan bool {
 			}
 		}
 	}()
-	log.Printf("created ticker for: %v", name)
 	return done
 }
 

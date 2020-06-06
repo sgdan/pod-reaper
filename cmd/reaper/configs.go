@@ -20,6 +20,9 @@ func maintainConfigs(s state) {
 		// send configs to consumer
 		case s.getConfigs <- toArray(configs):
 
+		case ns := <-s.rmNsConfig:
+			delete(configs, ns)
+
 		// update a config and store to k8s config map
 		case update := <-s.updateNsConfig:
 			configs[update.Name] = update

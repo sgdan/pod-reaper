@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"sort"
 	"time"
 )
@@ -26,18 +25,15 @@ func maintainStatus(s state) {
 			if newTime != now {
 				now = newTime
 				status = updateStatus(namespaces, now)
-				log.Printf("Updated time to: %v", now)
 			}
 
 		// update current status when a namespace changes
 		case update := <-s.updateNs:
 			namespaces[update.Name] = update
 			status = updateStatus(namespaces, now)
-			log.Printf("Namespace updated: %v", update)
 
 		// remove namespaces if required
 		case ns := <-s.rmNsStatus:
-			log.Printf("Removing namespace %v", ns)
 			delete(namespaces, ns)
 			status = updateStatus(namespaces, now)
 			// case valid := <-nsNames:

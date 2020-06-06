@@ -33,6 +33,14 @@ func (o *k8s) getExists(namespace string) bool {
 	return err == nil
 }
 
+func (o *k8s) getStatusOf(namespace string) (string, error) {
+	ns, err := o.clientset.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return string(ns.Status.Phase), nil
+}
+
 func (o *k8s) getConfigMap(name string) (*v1.ConfigMap, error) {
 	cm, err := o.clientset.CoreV1().ConfigMaps("podreaper").
 		Get(name, metav1.GetOptions{})

@@ -29,13 +29,14 @@ func maintainStatus(s state) {
 				log.Printf("Updated time to: %v", now)
 			}
 
-		// update current status
+		// update current status when a namespace changes
 		case update := <-s.updateNs:
 			namespaces[update.Name] = update
 			status = updateStatus(namespaces, now)
+			log.Printf("Namespace updated: %v", update)
 
 		// remove namespaces if required
-		case ns := <-s.rmNs:
+		case ns := <-s.rmNsStatus:
 			log.Printf("Removing namespace %v", ns)
 			delete(namespaces, ns)
 			status = updateStatus(namespaces, now)

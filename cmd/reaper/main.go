@@ -38,7 +38,7 @@ func main() {
 	var spec Specification
 	err := envconfig.Process("reaper", &spec)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatalf("Can't load environment vars: %v", err)
 	}
 	log.Printf("Zone ID: %v", spec.ZoneID)
 	log.Printf("Ignored Namespaces: %v", spec.IgnoredNamespaces)
@@ -46,7 +46,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid Zone ID: %v", err)
 	}
-	log.Printf("Time Zone: %v", location)
 
 	// k8s connection info
 	var kubeconfig *string
@@ -80,5 +79,5 @@ func main() {
 		fmt.Fprint(w, <-s.getStatus)
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatalf("Exit: %v", http.ListenAndServe(":8080", nil))
 }

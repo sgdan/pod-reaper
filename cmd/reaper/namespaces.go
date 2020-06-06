@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -10,32 +11,34 @@ import (
 
 // Update namespaces in the background
 func maintainNamespaces(s state) {
-	// Each running namespace has an update ticker and close channel.
-	// This map keeps track of the open tickers.
-	tickers := map[string]bool{}
+	// Each running namespace has an update ticker
+	// This map holds close channels for stopping the tickers
+	tickers := map[string](chan bool){}
 
-	checkNamespaces(tickers, s) // don't wait for tick for first one
+	checkNamespaces(tickers, s) // don't wait for first tick
 	for {
 		select {
 		case <-time.Tick(10 * time.Second):
 			checkNamespaces(tickers, s)
 
-		case ns := <-s.rmNs:
-			delete(tickers, ns)
-
 		case ns := <-s.triggerNs:
-			// log.Printf("Should update namespace: %v", ns)
-			updateNamespace(ns, s)
-
-			// default:
-			// 	log.Printf("maintainNamespaces default!")
-			// 	time.Sleep(1 * time.Second)
+			err := updateNamespace(ns, s)
+			if err != nil {
+				log.Printf("Unable to update namespace %v: %v", ns, err)
+				if !s.cluster.getExists(ns) {
+					tickers[ns] <- true
+					delete(tickers, ns)
+					log.Printf("Removing namespace: %v", ns)
+					s.rmNsConfig <- ns
+					s.rmNsStatus <- ns
+				}
+			}
 		}
 	}
 }
 
 // Periodically check for new namespaces
-func checkNamespaces(tickers map[string]bool, s state) {
+func checkNamespaces(tickers map[string](chan bool), s state) {
 	namespaces, err := s.cluster.getNamespaces()
 	if err != nil {
 		log.Printf("Unable to retrieve namespaces: %v", err)
@@ -47,12 +50,6 @@ func checkNamespaces(tickers map[string]bool, s state) {
 	for _, next := range namespaces {
 		if !contains(s.ignoredNamespaces, next) {
 			valid = append(valid, next)
-			// quota, err := checkQuota(next, cluster)
-			// if err != nil {
-			// 	log.Printf("Unable to check quota for %v: %v", next, err)
-			// }
-			// tempAutoStartHour := 9
-			// updateNamespace(next, &tempAutoStartHour, s.updateNs, quota, cluster, location)
 		}
 	}
 	log.Printf("valid: %v", valid)
@@ -60,45 +57,47 @@ func checkNamespaces(tickers map[string]bool, s state) {
 	// Start tickers for any new namespaces
 	log.Printf("tickers: %v", tickers)
 	for _, ns := range valid {
-		if !tickers[ns] {
-			createTickerFor(ns, s)
-			tickers[ns] = true
+		if _, ok := tickers[ns]; !ok {
+			tickers[ns] = createTickerFor(ns, s)
 		}
 	}
 }
 
 // Create a ticker to trigger updates for a particular namespace
-func createTickerFor(name string, s state) {
+func createTickerFor(name string, s state) chan bool {
 	ticker := time.NewTicker(5 * time.Second)
+	done := make(chan bool)
 	go func() {
 		for {
 			select {
-			case removed := <-s.rmNs:
-				log.Printf("Removed %v", removed)
-				if removed == name {
-					ticker.Stop()
-					log.Printf("No longer updating namespace: %v", name)
-					return
-				}
+			case <-done:
+				log.Printf("Removed ticker for %v", name)
+				ticker.Stop()
+				return
 			case <-ticker.C:
 				s.triggerNs <- name
 			}
 		}
 	}()
 	log.Printf("created ticker for: %v", name)
+	return done
 }
 
-func updateNamespace(name string, s state) {
-	log.Printf("Updating namespace: %v", name)
+func updateNamespace(name string, s state) error {
+	status, err := s.cluster.getStatusOf(name)
+	if err != nil {
+		return err
+	}
+	if status != "Active" {
+		return fmt.Errorf("Namespace %v is %v", name, status)
+	}
 	rq, err := checkQuota(name, s.cluster)
-
 	// cluster.checkLimitRange(name)
 	updated, err := loadNamespace(name, rq, s)
-	if err != nil {
-		log.Printf("Unable to load namespace %v: %v", name, err)
-	} else {
+	if err == nil {
 		s.updateNs <- updated
 	}
+	return err
 }
 
 func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsStatus, error) {

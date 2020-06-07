@@ -68,9 +68,11 @@ For front end unit tests run `make frontend-test`.
 - Front end is written in [Elm](https://elm-lang.org/)
 - Using [Create Elm App](https://github.com/halfzebra/create-elm-app)
 - Icon generated with [https://favicon.io/favicon-generator/](https://favicon.io/favicon-generator/)
-- Back end using [Micronaut](https://micronaut.io/) and [Kotlin](https://kotlinlang.org/)
-- Using the [fabric8 kubernetes client](https://github.com/fabric8io/kubernetes-client)
-  to access the Kubernetes API.
+- Back end written in [Golang](https://golang.org/) and uses:
+  - [client-go](https://github.com/kubernetes/client-go) go client for k8s
+- Note: Original backend was based on [Micronaut](https://micronaut.io/) and used:
+  - [Kotlin](https://kotlinlang.org/))
+  - [Fabric8 kubernetes client](https://github.com/fabric8io/kubernetes-client)
 
 # Links
 

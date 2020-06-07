@@ -52,3 +52,12 @@ func (s state) getConfigFor(ns string) nsConfig {
 		Limit: defaultLimit,
 	}
 }
+
+// copy the config map for consumers
+func (s state) configMap() map[string]nsConfig {
+	result := map[string]nsConfig{}
+	for _, cfg := range <-s.getConfigs {
+		result[cfg.Name] = cfg
+	}
+	return result
+}

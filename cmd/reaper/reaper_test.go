@@ -9,6 +9,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+// Note: Can't test deletePods because fake client doesn't support DeleteCollection
+
 func newTestSimpleK8s() *k8s {
 	client := k8s{}
 	client.clientset = fake.NewSimpleClientset()
@@ -137,48 +139,6 @@ func TestResourceQuotas(t *testing.T) {
 	}
 }
 
-/*
-// Can't test deletePods because fake client doesn't support DeleteCollection
-func TestPods(t *testing.T) {
-	k8s := newTestSimpleK8s()
-	defPods := k8s.clientset.CoreV1().Pods("default")
-
-	// start with no pods
-	pods, _ := defPods.List(metav1.ListOptions{})
-	if len(pods.Items) != 0 {
-		t.Fatalf("Should be no pods initially")
-	}
-
-	// create some pods
-	names := [3]string{"p1", "p2", "p3"}
-	for _, name := range names {
-		pod := &core.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
-			Spec: core.PodSpec{
-				Containers: []core.Container{
-					{
-						Name:  "nginx",
-						Image: "nginx",
-					},
-				},
-			},
-		}
-		defPods.Create(pod)
-	}
-	pods, _ = defPods.List(metav1.ListOptions{})
-	if len(pods.Items) != 3 {
-		t.Fatalf("Should be 3 pods")
-	}
-
-	defPods.DeleteCollection(&metav1.DeleteOptions{}, metav1.ListOptions{})
-	pods, _ = defPods.List(metav1.ListOptions{})
-	n := len(pods.Items)
-	log.Printf("length: %x", n)
-}
-*/
-
 func TestRemaining(t *testing.T) {
 	start := time.Now().Unix() // unix time in seconds (int64)
 	m := int64(60)             // seconds in minute
@@ -206,7 +166,7 @@ func check(expected string, actual string, t *testing.T) {
 	}
 }
 
-func checkInt(expected int, actual int, t *testing.T) {
+func checkInt(expected int64, actual int64, t *testing.T) {
 	if expected != actual {
 		t.Fatalf("Expected %v but was %v", expected, actual)
 	}
@@ -216,12 +176,9 @@ func TestAutoStart(t *testing.T) {
 	wed8pm := toTime("2019-11-13T20:00:00Z", t)
 	wedAfter8pm := toTime("2019-11-13T20:32:00Z", t)
 
-	// something is always more recent than nil
-	check("0001-01-01T00:00:00Z", toString(mostRecent(nil, time.Time{})), t)
-
 	// wednesday is more recent than beginning of time
-	started := mostRecent(&wed8pm, time.Time{})
-	check("2019-11-13T20:00:00Z", toString(started), t)
+	started := max(wed8pm.Unix(), 0)
+	check("2019-11-13T20:00:00Z", toTimeString(started), t)
 
 	// check lastScheduled
 	hour := 20
@@ -234,8 +191,8 @@ func TestAutoStart(t *testing.T) {
 	check("2019-11-13T17:00:00Z", lschedString, t)
 
 	// check hoursFrom
-	checkInt(0, hoursFrom(started, wedAfter8pm), t)
-	checkInt(3, hoursFrom(time.Unix(lsched, 0), wedAfter8pm), t)
+	checkInt(0, hoursFrom(started, wedAfter8pm.Unix()), t)
+	checkInt(3, hoursFrom(lsched, wedAfter8pm.Unix()), t)
 }
 
 func toTime(value string, t *testing.T) time.Time {
@@ -248,4 +205,8 @@ func toTime(value string, t *testing.T) time.Time {
 
 func toString(value time.Time) string {
 	return value.Format(time.RFC3339)
+}
+
+func toTimeString(value int64) string {
+	return toString(time.Unix(value, 0).In(time.UTC))
 }

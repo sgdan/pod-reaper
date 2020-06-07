@@ -30,16 +30,15 @@ type nsConfig struct {
 
 // Namespace data
 type nsState struct {
-	Name         string
-	HasDownQuota bool
-	// CanExtend    bool
-	MemUsed int
-	// MemLimit     int
-	Remaining string
+	Name          string
+	HasDownQuota  bool
+	MemUsed       int
+	Remaining     string
+	LastScheduled int64
 }
 
+// Namespace data required by UI
 type nsStatus struct {
-	// used by UI frontend
 	Name          string `json:"name"`
 	HasDownQuota  bool   `json:"hasDownQuota"`
 	CanExtend     bool   `json:"canExtend"`
@@ -47,11 +46,6 @@ type nsStatus struct {
 	MemLimit      int    `json:"memLimit"`
 	AutoStartHour *int   `json:"autoStartHour"`
 	Remaining     string `json:"remaining"`
-
-	// backend only
-	// hasResourceQuota bool
-	// lastScheduled ???
-	// lastStarted uint64
 }
 
 type startRequest struct {

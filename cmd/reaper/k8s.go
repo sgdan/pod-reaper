@@ -85,12 +85,8 @@ func fromJSON(data string) ([]nsConfig, error) {
 }
 
 func (o *k8s) deletePods(namespace string) error {
-	err := o.clientset.CoreV1().Pods(namespace).DeleteCollection(
+	return o.clientset.CoreV1().Pods(namespace).DeleteCollection(
 		&metav1.DeleteOptions{}, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("Unable to delete pods in %s: %v", namespace, err)
-	}
-	return nil
 }
 
 func (o *k8s) getNamespaces() ([]string, error) {

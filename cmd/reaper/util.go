@@ -22,16 +22,6 @@ func remaining(s int64) string {
 	return fmt.Sprintf("%dm", m%60)
 }
 
-func mostRecent(a *time.Time, b time.Time) time.Time {
-	if a == nil {
-		return b
-	}
-	if a.After(b) {
-		return *a
-	}
-	return b
-}
-
 func max(a, b int64) int64 {
 	if a > b {
 		return a
@@ -82,6 +72,6 @@ func isWeekend(day time.Weekday) bool {
 	return day == time.Saturday || day == time.Sunday
 }
 
-func hoursFrom(earlier time.Time, later time.Time) int {
-	return int(later.Sub(earlier).Hours())
+func hoursFrom(earlier int64, later int64) int64 {
+	return (later - earlier) / (60 * 60)
 }

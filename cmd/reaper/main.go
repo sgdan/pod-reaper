@@ -73,6 +73,7 @@ func main() {
 	go maintainStatus(s)
 	go maintainNamespaces(s)
 	go maintainLimitRanges(s)
+	go reap(s)
 
 	// serve latest cached JSON status to clients
 	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {

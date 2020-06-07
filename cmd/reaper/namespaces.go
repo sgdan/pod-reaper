@@ -106,10 +106,11 @@ func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsState, error) 
 	lastStarted := max(cfg.LastStarted, lastScheduled)
 	seconds := remainingSeconds(lastStarted, now.Unix())
 	return nsState{
-		Name:         name,
-		HasDownQuota: s.cluster.hasResourceQuota(name, downQuotaName),
-		MemUsed:      int(memUsed),
-		Remaining:    remaining(seconds),
+		Name:          name,
+		HasDownQuota:  s.cluster.hasResourceQuota(name, downQuotaName),
+		MemUsed:       int(memUsed),
+		Remaining:     remaining(seconds),
+		LastScheduled: lastScheduled,
 	}, nil
 }
 

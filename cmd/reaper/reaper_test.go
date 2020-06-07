@@ -77,7 +77,8 @@ func TestSettings(t *testing.T) {
 }
 
 func TestJSON(t *testing.T) {
-	example := "[{\"name\":\"default\",\"autoStartHour\":null,\"lastStarted\":1589668156345},{\"name\":\"ns1\",\"autoStartHour\":9,\"lastStarted\":0}]"
+	example := "[{\"name\":\"default\",\"autoStartHour\":null,\"lastStarted\":1589668156345,\"limit\":10}," +
+		"{\"name\":\"ns1\",\"autoStartHour\":9,\"lastStarted\":0,\"limit\":20}]"
 	converted, _ := fromJSON(example)
 
 	restored, _ := toJSON(converted)

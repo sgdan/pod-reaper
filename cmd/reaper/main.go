@@ -70,7 +70,6 @@ func main() {
 	}
 
 	s := newState(*location, spec.IgnoredNamespaces, k8s{clientset: clientset})
-	go maintainConfigs(s)
 	go maintainStatus(s)
 	go maintainNamespaces(s)
 
@@ -85,7 +84,13 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			var lr limitRequest
 			err := decoder.Decode(&lr)
-			log.Printf("setMemLimit: %v, %v", lr, err)
+			if err == nil {
+				cfg := s.getConfigFor(lr.Namespace)
+				cfg.Limit = lr.Limit
+				s.updateNsConfig <- cfg
+			} else {
+				log.Printf("Unable to set start hour: %v", err)
+			}
 			fmt.Fprint(w, <-s.getStatus)
 		}
 	})
@@ -94,7 +99,13 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			var sr startRequest
 			err := decoder.Decode(&sr)
-			log.Printf("setStartHour: %v, %v", sr, err)
+			if err == nil {
+				cfg := s.getConfigFor(sr.Namespace)
+				cfg.AutoStartHour = sr.StartHour
+				s.updateNsConfig <- cfg
+			} else {
+				log.Printf("Unable to set start hour: %v", err)
+			}
 			fmt.Fprint(w, <-s.getStatus)
 		}
 	})
@@ -104,6 +115,13 @@ func main() {
 			var sr startRequest
 			err := decoder.Decode(&sr)
 			log.Printf("extend: %v, %v", sr, err)
+			if err == nil {
+				cfg := s.getConfigFor(sr.Namespace)
+				cfg.LastStarted = time.Now().Unix() - 1
+				s.updateNsConfig <- cfg
+			} else {
+				log.Printf("Unable to extend namespace: %v", err)
+			}
 			fmt.Fprint(w, <-s.getStatus)
 		}
 	})

@@ -15,15 +15,27 @@ type Specification struct {
 	CorsOrigins       []string `default:"http://localhost:3000" envconfig:"cors_origins"`
 }
 
+type status struct {
+	Clock      string     `json:"clock"`
+	Namespaces []nsStatus `json:"namespaces"`
+}
+
+// Namespace data that can be configured via the UI
 type nsConfig struct {
 	Name          string `json:"name"`
 	AutoStartHour *int   `json:"autoStartHour"`
 	LastStarted   int64  `json:"lastStarted"`
+	Limit         int    `json:"limit"`
 }
 
-type status struct {
-	Clock      string     `json:"clock"`
-	Namespaces []nsStatus `json:"namespaces"`
+// Namespace data
+type nsState struct {
+	Name         string
+	HasDownQuota bool
+	// CanExtend    bool
+	MemUsed int
+	// MemLimit     int
+	Remaining string
 }
 
 type nsStatus struct {

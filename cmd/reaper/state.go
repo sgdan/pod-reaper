@@ -10,8 +10,8 @@ type state struct {
 	cluster           k8s // access to the cluster
 
 	// changes and updates
-	updateNs       chan nsStatus // signal namespace updated
 	triggerNs      chan string   // signal that namespace needs to be updated
+	updateNsState  chan nsState  // signal namespace updated
 	updateNsConfig chan nsConfig // signal namepsace config updated
 
 	// signal namespace removal
@@ -21,6 +21,7 @@ type state struct {
 	// getting data
 	getStatus  chan string     // get the current status JSON
 	getConfigs chan []nsConfig // get the current namespace configs
+	getStates  chan []nsState  // get cached namespace state
 }
 
 func newState(tz time.Location, ignored []string, cluster k8s) state {
@@ -28,13 +29,14 @@ func newState(tz time.Location, ignored []string, cluster k8s) state {
 		timeZone:          tz,
 		ignoredNamespaces: ignored,
 		cluster:           cluster,
-		updateNs:          make(chan nsStatus),
 		triggerNs:         make(chan string),
 		rmNsConfig:        make(chan string),
 		rmNsStatus:        make(chan string),
+		updateNsState:     make(chan nsState),
 		updateNsConfig:    make(chan nsConfig),
 		getStatus:         make(chan string),
 		getConfigs:        make(chan []nsConfig),
+		getStates:         make(chan []nsState),
 	}
 	return s
 }
@@ -46,5 +48,6 @@ func (s state) getConfigFor(ns string) nsConfig {
 			return cfg
 		}
 	}
-	return nsConfig{} // return an empty one if existing not found
+	// return empty one if existing not found
+	return nsConfig{Name: ns}
 }

@@ -93,31 +93,31 @@ func updateNamespace(name string, s state) error {
 	// cluster.checkLimitRange(name)
 	updated, err := loadNamespace(name, rq, s)
 	if err == nil {
-		s.updateNs <- updated
+		s.updateNsState <- updated
 	}
 	return err
 }
 
-func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsStatus, error) {
+func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsState, error) {
 	memUsed := int64(0)
-	memLimit := int64(10)
+	// memLimit := int64(10)
 	if rq != nil {
 		memUsed = rq.Status.Used.Memory().Value() / bytesInGi
-		memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
+		// memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
 	}
 	cfg := s.getConfigFor(name)
 	now := time.Now().In(&s.timeZone)
 	lastScheduled := lastScheduled(cfg.AutoStartHour, now)
 	lastStarted := max(cfg.LastStarted, lastScheduled)
 	seconds := remainingSeconds(lastStarted, now.Unix())
-	return nsStatus{
-		Name:          name,
-		HasDownQuota:  s.cluster.hasResourceQuota(name, downQuotaName),
-		CanExtend:     seconds < (window-1)*60*60,
-		MemUsed:       int(memUsed),
-		MemLimit:      int(memLimit),
-		AutoStartHour: cfg.AutoStartHour,
-		Remaining:     remaining(seconds),
+	return nsState{
+		Name:         name,
+		HasDownQuota: s.cluster.hasResourceQuota(name, downQuotaName),
+		// CanExtend:     seconds < (window-1)*60*60,
+		MemUsed: int(memUsed),
+		// MemLimit:      int(memLimit),
+		// AutoStartHour: cfg.AutoStartHour,
+		Remaining: remaining(seconds),
 	}, nil
 }
 

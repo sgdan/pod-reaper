@@ -1,6 +1,6 @@
 # Build the Pod Reaper app in stages
 
-FROM golang:1.14.2-alpine
+FROM golang:1.14.4-alpine
 # RUN mkdir -p app
 
 WORKDIR /go/src

@@ -11,8 +11,10 @@ import (
 func maintainStatus(s state) {
 	now := time.Now().In(&s.timeZone).Format(timeFormat)
 	configs := loadConfigs(s)
+	configsChanged := false
 	states := map[string]nsState{}
-	tick := time.Tick(5 * time.Second) // trigger clock updates
+	clockTick := time.Tick(5 * time.Second) // trigger clock updates
+	cfgTick := time.Tick(60 * time.Second)  // trigger config saves
 
 	for {
 		select {
@@ -20,7 +22,7 @@ func maintainStatus(s state) {
 		case s.getStatus <- updateStatus(configs, states, now):
 
 		// update the time displayed in web UI
-		case <-tick:
+		case <-clockTick:
 			newTime := time.Now().In(&s.timeZone).Format(timeFormat)
 			if newTime != now {
 				now = newTime
@@ -31,6 +33,7 @@ func maintainStatus(s state) {
 
 		case config := <-s.updateNsConfig:
 			configs[config.Name] = config
+			configsChanged = true
 
 		// remove namespaces if required
 		case ns := <-s.rmNsStatus:
@@ -39,6 +42,18 @@ func maintainStatus(s state) {
 
 		// send configs to consumer
 		case s.getConfigs <- toArray(configs):
+
+		// save configs
+		case <-cfgTick:
+			if configsChanged {
+				err := s.cluster.saveSettings(toArray(configs))
+				if err != nil {
+					log.Printf("Unable to save configs: %v", err)
+				} else {
+					configsChanged = false
+					log.Printf("Configs saved")
+				}
+			}
 		}
 
 	}

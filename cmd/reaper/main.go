@@ -114,7 +114,6 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			var sr startRequest
 			err := decoder.Decode(&sr)
-			log.Printf("extend: %v, %v", sr, err)
 			if err == nil {
 				cfg := s.getConfigFor(sr.Namespace)
 				cfg.LastStarted = time.Now().Unix() - 1

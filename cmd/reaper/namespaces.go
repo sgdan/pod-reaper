@@ -89,8 +89,7 @@ func updateNamespace(name string, s state) error {
 	if status != "Active" {
 		return fmt.Errorf("Namespace %v is %v", name, status)
 	}
-	rq, err := checkQuota(name, s.cluster)
-	// cluster.checkLimitRange(name)
+	rq, err := checkQuota(name, s)
 	updated, err := loadNamespace(name, rq, s)
 	if err == nil {
 		s.updateNsState <- updated
@@ -100,10 +99,8 @@ func updateNamespace(name string, s state) error {
 
 func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsState, error) {
 	memUsed := int64(0)
-	// memLimit := int64(10)
 	if rq != nil {
 		memUsed = rq.Status.Used.Memory().Value() / bytesInGi
-		// memLimit = rq.Spec.Hard.Memory().Value() / bytesInGi
 	}
 	cfg := s.getConfigFor(name)
 	now := time.Now().In(&s.timeZone)
@@ -113,24 +110,31 @@ func loadNamespace(name string, rq *v1.ResourceQuota, s state) (nsState, error) 
 	return nsState{
 		Name:         name,
 		HasDownQuota: s.cluster.hasResourceQuota(name, downQuotaName),
-		// CanExtend:     seconds < (window-1)*60*60,
-		MemUsed: int(memUsed),
-		// MemLimit:      int(memLimit),
-		// AutoStartHour: cfg.AutoStartHour,
-		Remaining: remaining(seconds),
+		MemUsed:      int(memUsed),
+		Remaining:    remaining(seconds),
 	}, nil
 }
 
 // Check if there's a quota for the namespace, create one if not
-func checkQuota(namespace string, cluster k8s) (*v1.ResourceQuota, error) {
-	quota, err := cluster.getResourceQuota(namespace, quotaName)
+func checkQuota(ns string, s state) (*v1.ResourceQuota, error) {
+	quota, err := s.cluster.getResourceQuota(ns, quotaName)
 	if err != nil {
-		log.Printf("Creating default quota for %v", namespace)
-		value := resource.NewQuantity(defaultQuota, resource.Format("BinarySI"))
-		quota, err = cluster.setResourceQuota(namespace, quotaName, *value)
+		log.Printf("Creating default quota for %v", ns)
+		quota, err = setQuota(ns, defaultQuota, s)
 		if err != nil {
-			log.Printf("Unable to create quota for %v: %v", namespace, err)
+			log.Printf("Unable to create quota for %v: %v", ns, err)
 		}
 	}
+	limit := quota.Spec.Hard.Memory().Value()
+	cfg := s.getConfigFor(ns)
+	if cfg.Limit != int(limit) {
+		quota, err = setQuota(ns, int64(cfg.Limit), s)
+		log.Printf("Updated %v limit to %v", ns, cfg.Limit)
+	}
 	return quota, err
+}
+
+func setQuota(ns string, limit int64, s state) (*v1.ResourceQuota, error) {
+	value := resource.NewQuantity(limit, resource.Format("BinarySI"))
+	return s.cluster.setResourceQuota(ns, quotaName, *value)
 }

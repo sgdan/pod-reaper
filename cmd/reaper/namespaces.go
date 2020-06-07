@@ -119,7 +119,7 @@ func checkQuota(ns string, s state) (*v1.ResourceQuota, error) {
 	quota, err := s.cluster.getResourceQuota(ns, quotaName)
 	if err != nil {
 		log.Printf("Creating default quota for %v", ns)
-		quota, err = setQuota(ns, defaultLimit*bytesInGi, s)
+		quota, err = setQuota(ns, defaultLimit, s)
 		if err != nil {
 			log.Printf("Unable to create quota for %v: %v", ns, err)
 		}

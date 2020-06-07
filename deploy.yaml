@@ -85,3 +85,5 @@ spec:
               value: kube-system,kube-public,kube-node-lease,podreaper,docker
             - name: CORS_ENABLED
               value: "false"
+            - name: IN_CLUSTER
+              value: "true"

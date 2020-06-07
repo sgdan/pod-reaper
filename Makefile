@@ -78,4 +78,4 @@ delete:
 
 # edit to manually change last started time for test purposes
 edit:
-	kubectl edit cm podreaper-config -n podreaper
+	kubectl edit cm podreaper-goconfig -n podreaper

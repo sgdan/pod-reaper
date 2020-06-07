@@ -12,6 +12,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -27,13 +28,6 @@ const podLimit = "512Mi"
 const window = 8 // hours in uptime window
 const configMapName = "podreaper-goconfig"
 
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
-}
-
 func main() {
 	// load the configuration
 	var spec Specification
@@ -48,25 +42,13 @@ func main() {
 		log.Fatalf("Invalid Zone ID: %v", err)
 	}
 
-	// k8s connection info
-	var kubeconfig *string
-	if home := homeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	var clientset *kubernetes.Clientset
+	if spec.InCluster {
+		log.Printf("Using in-cluster configuration")
+		clientset = initInCluster()
 	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
+		log.Printf("Using out-of-cluster configuration")
+		clientset = initOutOfCluster()
 	}
 
 	s := newState(*location, spec.IgnoredNamespaces, k8s{clientset: clientset})
@@ -127,7 +109,16 @@ func main() {
 		}
 	})
 
-	log.Fatalf("Exit: %v", http.ListenAndServe(":8080", nil))
+	// serve the front end static files
+	if spec.StaticFiles != "" {
+		fs := http.FileServer(http.Dir(spec.StaticFiles))
+		http.Handle("/", fs)
+	}
+
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatalf("Exit: %v", err)
+	}
 }
 
 // Set headers based on CORS configuration
@@ -147,4 +138,51 @@ func setHeaders(method string, spec Specification, w http.ResponseWriter, r *htt
 		h.Set("Content-Type", "application/json")
 	}
 	return true
+}
+
+// Use in-cluster config to connect to k8s api
+// see https://github.com/kubernetes/client-go/blob/master/examples/in-cluster-client-configuration/main.go
+func initInCluster() *kubernetes.Clientset {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return clientset
+}
+
+// Use local kubeconfig to connect to k8s api
+// see https://github.com/kubernetes/client-go/tree/master/examples/out-of-cluster-client-configuration
+func initOutOfCluster() *kubernetes.Clientset {
+	var kubeconfig *string
+	if home := homeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	flag.Parse()
+
+	// use the current context in kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// create the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return clientset
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
 }

@@ -1,22 +1,12 @@
-.PHONY: build go
-
-go:
-	docker build -t gotest .
-	docker run --rm -it -v $(HOME)/.kube:/root/.kube -p 8080:8080 gotest
-
-# assumes go installed locally
-test:
-	go mod tidy
-	go mod download
-	go test -v ./cmd/reaper
-
+.PHONY: build
 
 # build and run using docker
 build:
 	docker build . -t podreaper
 
-# run: build
-# 	docker run --rm -it -v ~/.kube:/root/.kube -p 8080:8080 podreaper
+run: build
+	docker run --rm -it \
+		-v $(HOME)/.kube:/root/.kube -p 8080:8080 podreaper
 
 # deploy to local kubernetes (make sure "podreaper" namespace exists)
 # view UI at http://localhost:8080
@@ -36,24 +26,32 @@ events:
 	kubectl get events --sort-by=.metadata.creationTimestamp --all-namespaces
 
 # for local development, start front and back end separately
+# Front end will run at http://localhost:3000
 frontend-dev:
 	cd frontend && elm-app start
 
-backend-dev:
-	docker-compose run -p 8080:8080 gradle gradle run
+# Back end runs on localhost:8080, need CORS so dev front end can connect
+backend-dev: build
+	docker run --rm -it -e CORS_ENABLED=true \
+		-v $(HOME)/.kube:/root/.kube -p 8080:8080 podreaper
 
 
 # unit testing
 frontend-test:
 	cd frontend && elm-test
 
+# assumes golang is installed locally
 backend-test:
-	docker-compose run --rm gradle gradle test
+	go mod tidy
+	go mod download
+	go test -v ./cmd/reaper
+
 
 
 # gradle shell for back end
-backend-shell:
-	docker-compose run --rm -p 8080:8080 gradle bash
+backend-shell: build
+	docker run --rm -it -e CORS_ENABLED=true \
+		-v $(HOME)/.kube:/root/.kube -p 8080:8080 podreaper sh
 
 
 # some resources for k8s testing

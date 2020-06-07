@@ -126,7 +126,7 @@ func checkQuota(ns string, s state) (*v1.ResourceQuota, error) {
 	}
 	limit := quota.Spec.Hard.Memory().Value()
 	cfg := s.getConfigFor(ns)
-	if cfg.Limit != int(limit) {
+	if cfg.Limit != int(limit/bytesInGi) {
 		quota, err = setQuota(ns, int64(cfg.Limit), s)
 		log.Printf("Updated %v limit to %v", ns, cfg.Limit)
 	}
@@ -134,6 +134,6 @@ func checkQuota(ns string, s state) (*v1.ResourceQuota, error) {
 }
 
 func setQuota(ns string, limit int64, s state) (*v1.ResourceQuota, error) {
-	value := resource.NewQuantity(limit, resource.Format("BinarySI"))
+	value := resource.NewQuantity(limit*bytesInGi, resource.Format("BinarySI"))
 	return s.cluster.setResourceQuota(ns, quotaName, *value)
 }

@@ -13,14 +13,17 @@ type Specification struct {
 	ZoneID            string   `default:"UTC" envconfig:"zone_id"`
 	CorsEnabled       bool     `default:"true" envconfig:"cors_enabled"`
 	CorsOrigins       []string `default:"http://localhost:3000" envconfig:"cors_origins"`
+	InCluster         bool     `default:"false" envconfig:"in_cluster"`
+	StaticFiles       string   `default:"" envconfig:"static_files"`
 }
 
+// This is the status displayed by the UI
 type status struct {
 	Clock      string     `json:"clock"`
 	Namespaces []nsStatus `json:"namespaces"`
 }
 
-// Namespace data that can be configured via the UI
+// Namespace settings configured via the UI
 type nsConfig struct {
 	Name          string `json:"name"`
 	AutoStartHour *int   `json:"autoStartHour"`
@@ -28,7 +31,7 @@ type nsConfig struct {
 	Limit         int    `json:"limit"`
 }
 
-// Namespace data
+// Namespace data used in backend
 type nsState struct {
 	Name          string
 	HasDownQuota  bool
@@ -48,11 +51,11 @@ type nsStatus struct {
 	Remaining     string `json:"remaining"`
 }
 
+// POST requests from UI
 type startRequest struct {
 	Namespace string `json:"namespace"`
 	StartHour *int   `json:"startHour"`
 }
-
 type limitRequest struct {
 	Namespace string `json:"namespace"`
 	Limit     int    `json:"limit"`

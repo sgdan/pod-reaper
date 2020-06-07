@@ -20,6 +20,7 @@ RUN go build -o reaper ./cmd/reaper
 
 # Final image: Alpine
 FROM alpine:3.12.0
+RUN apk add --no-cache tzdata
 WORKDIR /podreaper
 COPY --from=frontend /app/build ./ui
 COPY --from=backend /go/src/reaper ./reaper

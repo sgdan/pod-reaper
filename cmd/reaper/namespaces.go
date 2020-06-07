@@ -16,7 +16,7 @@ func maintainNamespaces(s state) {
 	tickers := map[string](chan bool){}
 
 	checkNamespaces(tickers, s) // don't wait for first tick
-	tick := time.Tick(5 * time.Second)
+	tick := time.Tick(7 * time.Second)
 	for {
 		select {
 		case <-tick:
@@ -30,8 +30,7 @@ func maintainNamespaces(s state) {
 					log.Printf("Removing namespace: %v", ns)
 					tickers[ns] <- true
 					delete(tickers, ns)
-					s.rmNsConfig <- ns
-					s.rmNsStatus <- ns
+					s.rmNamespace <- ns
 				}
 			}
 		}
@@ -58,7 +57,6 @@ func checkNamespaces(tickers map[string](chan bool), s state) {
 	for _, ns := range valid {
 		if _, ok := tickers[ns]; !ok {
 			tickers[ns] = createTickerFor(ns, s)
-			s.cluster.checkLimitRange(ns)
 		}
 	}
 }
@@ -120,7 +118,7 @@ func checkQuota(ns string, s state) (*v1.ResourceQuota, error) {
 	quota, err := s.cluster.getResourceQuota(ns, quotaName)
 	if err != nil {
 		log.Printf("Creating default quota for %v", ns)
-		quota, err = setQuota(ns, defaultQuota, s)
+		quota, err = setQuota(ns, defaultLimit*bytesInGi, s)
 		if err != nil {
 			log.Printf("Unable to create quota for %v: %v", ns, err)
 		}

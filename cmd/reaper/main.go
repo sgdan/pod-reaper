@@ -20,7 +20,7 @@ const namespaceInterval = 5 // target interval between namespace updates
 const quotaName = "reaper-quota"
 const downQuotaName = "reaper-down-quota"
 const bytesInGi = 1024 * 1024 * 1024
-const defaultQuota = 10 * bytesInGi
+const defaultLimit = 10
 const limitRangeName = "reaper-limit"
 const podRequest = "512Mi"
 const podLimit = "512Mi"
@@ -72,6 +72,7 @@ func main() {
 	s := newState(*location, spec.IgnoredNamespaces, k8s{clientset: clientset})
 	go maintainStatus(s)
 	go maintainNamespaces(s)
+	go maintainLimitRanges(s)
 
 	// serve latest cached JSON status to clients
 	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {

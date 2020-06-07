@@ -13,8 +13,8 @@ func maintainStatus(s state) {
 	configs := loadConfigs(s)
 	configsChanged := false
 	states := map[string]nsState{}
-	clockTick := time.Tick(5 * time.Second) // trigger clock updates
-	cfgTick := time.Tick(60 * time.Second)  // trigger config saves
+	clockTick := time.Tick(7 * time.Second) // trigger clock updates
+	cfgTick := time.Tick(17 * time.Second)  // trigger config saves
 
 	for {
 		select {
@@ -36,17 +36,21 @@ func maintainStatus(s state) {
 			configsChanged = true
 
 		// remove namespaces if required
-		case ns := <-s.rmNsStatus:
+		case ns := <-s.rmNamespace:
 			delete(configs, ns)
 			delete(states, ns)
+			configsChanged = true
 
 		// send configs to consumer
-		case s.getConfigs <- toArray(configs):
+		case s.getConfigs <- cfgArray(configs):
+
+		// send states to consumer
+		case s.getStates <- stateArray(states):
 
 		// save configs
 		case <-cfgTick:
 			if configsChanged {
-				err := s.cluster.saveSettings(toArray(configs))
+				err := s.cluster.saveSettings(cfgArray(configs))
 				if err != nil {
 					log.Printf("Unable to save configs: %v", err)
 				} else {
@@ -59,9 +63,17 @@ func maintainStatus(s state) {
 	}
 }
 
-func toArray(cfgs map[string]nsConfig) []nsConfig {
+func cfgArray(cfgs map[string]nsConfig) []nsConfig {
 	result := []nsConfig{}
 	for _, v := range cfgs {
+		result = append(result, v)
+	}
+	return result
+}
+
+func stateArray(states map[string]nsState) []nsState {
+	result := []nsState{}
+	for _, v := range states {
 		result = append(result, v)
 	}
 	return result

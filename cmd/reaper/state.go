@@ -15,8 +15,7 @@ type state struct {
 	updateNsConfig chan nsConfig // signal namepsace config updated
 
 	// signal namespace removal
-	rmNsConfig chan string
-	rmNsStatus chan string
+	rmNamespace chan string
 
 	// getting data
 	getStatus  chan string     // get the current status JSON
@@ -30,8 +29,7 @@ func newState(tz time.Location, ignored []string, cluster k8s) state {
 		ignoredNamespaces: ignored,
 		cluster:           cluster,
 		triggerNs:         make(chan string),
-		rmNsConfig:        make(chan string),
-		rmNsStatus:        make(chan string),
+		rmNamespace:       make(chan string),
 		updateNsState:     make(chan nsState),
 		updateNsConfig:    make(chan nsConfig),
 		getStatus:         make(chan string),
@@ -49,5 +47,8 @@ func (s state) getConfigFor(ns string) nsConfig {
 		}
 	}
 	// return empty one if existing not found
-	return nsConfig{Name: ns}
+	return nsConfig{
+		Name:  ns,
+		Limit: defaultLimit,
+	}
 }

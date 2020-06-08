@@ -75,3 +75,7 @@ func isWeekend(day time.Weekday) bool {
 func hoursFrom(earlier int64, later int64) int64 {
 	return (later - earlier) / (60 * 60)
 }
+
+func formatTime(value int64, zone *time.Location) string {
+	return time.Unix(value, 0).In(zone).Format(time.RFC3339)
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -173,22 +174,27 @@ func checkInt(expected int64, actual int64, t *testing.T) {
 }
 
 func TestAutoStart(t *testing.T) {
-	wed8pm := toTime("2019-11-13T20:00:00Z", t)
-	wedAfter8pm := toTime("2019-11-13T20:32:00Z", t)
+	zone, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		log.Fatalf("Invalid Zone ID: %v", err)
+	}
+
+	wed8pm := toTime("2019-11-13T20:00:00+08:00", t)
+	wedAfter8pm := toTime("2019-11-13T20:32:00+08:00", t)
 
 	// wednesday is more recent than beginning of time
 	started := max(wed8pm.Unix(), 0)
-	check("2019-11-13T20:00:00Z", toTimeString(started), t)
+	check("2019-11-13T20:00:00+08:00", formatTime(started, zone), t)
 
 	// check lastScheduled
 	hour := 20
 	lsched := lastScheduled(&hour, wedAfter8pm)
-	lschedString := toString(time.Unix(lsched, 0).In(time.UTC))
-	check("2019-11-13T20:00:00Z", lschedString, t)
+	lschedString := toString(time.Unix(lsched, 0).In(zone))
+	check("2019-11-13T20:00:00+08:00", lschedString, t)
 	hour = 17
 	lsched = lastScheduled(&hour, wedAfter8pm)
-	lschedString = toString(time.Unix(lsched, 0).In(time.UTC))
-	check("2019-11-13T17:00:00Z", lschedString, t)
+	lschedString = toString(time.Unix(lsched, 0).In(zone))
+	check("2019-11-13T17:00:00+08:00", lschedString, t)
 
 	// check hoursFrom
 	checkInt(0, hoursFrom(started, wedAfter8pm.Unix()), t)
@@ -205,8 +211,4 @@ func toTime(value string, t *testing.T) time.Time {
 
 func toString(value time.Time) string {
 	return value.Format(time.RFC3339)
-}
-
-func toTimeString(value int64) string {
-	return toString(time.Unix(value, 0).In(time.UTC))
 }

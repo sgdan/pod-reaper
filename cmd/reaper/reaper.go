@@ -17,9 +17,15 @@ func reap(s state) {
 				ns := state.Name
 				cfg := cfgs[ns]
 				started := max(state.LastScheduled, cfg.LastStarted)
-				shouldRun := hoursFrom(started, time.Now().Unix()) < window
+
+				// update lastStarted for scheduled starts
+				if started > cfg.LastStarted {
+					cfg.LastStarted = started
+					s.updateNsConfig <- cfg
+				}
 
 				// change up/down state
+				shouldRun := hoursFrom(started, time.Now().Unix()) < window
 				if !state.HasDownQuota && !shouldRun {
 					bringDown(ns, s)
 				}

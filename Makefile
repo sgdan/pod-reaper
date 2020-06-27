@@ -31,9 +31,12 @@ frontend-dev:
 	cd frontend && elm-app start
 
 # Back end runs on localhost:8080, need CORS so dev front end can connect
-backend-dev: build
-	docker run --rm -it -e CORS_ENABLED=true \
-		-v $(HOME)/.kube:/root/.kube -p 8080:8080 podreaper
+# Assumes you have golang tools installed
+backend-dev:
+	go mod tidy
+	go mod download
+	go build -o reaper ./cmd/reaper
+	CORS_ENABLED=true ./reaper
 
 
 # unit testing
@@ -45,7 +48,6 @@ backend-test:
 	go mod tidy
 	go mod download
 	go test -v ./cmd/reaper
-
 
 
 # gradle shell for back end

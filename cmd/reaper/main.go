@@ -51,7 +51,7 @@ func main() {
 		clientset = initOutOfCluster()
 	}
 
-	s := newState(*location, spec.IgnoredNamespaces, k8s{clientset: clientset})
+	s := newState(spec, *location, k8s{clientset: clientset})
 	go maintainStatus(s)
 	go maintainNamespaces(s)
 	go maintainLimitRanges(s)

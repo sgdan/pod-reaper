@@ -5,9 +5,9 @@ import (
 )
 
 type state struct {
-	timeZone          time.Location
-	ignoredNamespaces []string
-	cluster           k8s // access to the cluster
+	Spec     Specification
+	timeZone time.Location
+	cluster  k8s // access to the cluster
 
 	// changes and updates
 	triggerNs      chan string   // signal that namespace needs to be updated
@@ -23,18 +23,18 @@ type state struct {
 	getStates  chan []nsState  // get cached namespace state
 }
 
-func newState(tz time.Location, ignored []string, cluster k8s) state {
+func newState(spec Specification, tz time.Location, cluster k8s) state {
 	s := state{
-		timeZone:          tz,
-		ignoredNamespaces: ignored,
-		cluster:           cluster,
-		triggerNs:         make(chan string),
-		rmNamespace:       make(chan string),
-		updateNsState:     make(chan nsState),
-		updateNsConfig:    make(chan nsConfig),
-		getStatus:         make(chan string),
-		getConfigs:        make(chan []nsConfig),
-		getStates:         make(chan []nsState),
+		Spec:           spec,
+		timeZone:       tz,
+		cluster:        cluster,
+		triggerNs:      make(chan string),
+		rmNamespace:    make(chan string),
+		updateNsState:  make(chan nsState),
+		updateNsConfig: make(chan nsConfig),
+		getStatus:      make(chan string),
+		getConfigs:     make(chan []nsConfig),
+		getStates:      make(chan []nsState),
 	}
 	return s
 }

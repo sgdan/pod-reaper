@@ -29,6 +29,20 @@ The UI served by the k8s pod allows the following:
 To build and run the docker container, use `make run` then go to
 [http://localhost:8080](http://localhost:8080) for the UI.
 
+## Configuration
+
+The container can be configured using environment variables:
+
+| Variable           | Default                                                  | Description                                  |
+| ------------------ | -------------------------------------------------------- | -------------------------------------------- |
+| IGNORED_NAMESPACES | kube-system,kube-public,kube-node-lease,podreaper,docker | Reaper will ignore these namespaces          |
+| ZONE_ID            | UTC                                                      | Time Zone used by UI                         |
+| NAMESPACE_TICK     | 11s                                                      | How often to update namespace data for UI    |
+| NAMESPACES_TICK    | 17s                                                      | How often to check for new namespaces        |
+| RANGER_TICK        | 41s                                                      | How often to check limit ranges              |
+| CLOCK_TICK         | 13s                                                      | How often to update UI clock                 |
+| REAPER_TICK        | 29s                                                      | How often to check if pods need to be reaped |
+
 ## Deployment
 
 ```bash
@@ -71,7 +85,7 @@ For front end unit tests run `make frontend-test`.
 - Back end written in [Golang](https://golang.org/) and uses:
   - [client-go](https://github.com/kubernetes/client-go) go client for k8s
 - Note: Original backend was based on [Micronaut](https://micronaut.io/) and used:
-  - [Kotlin](https://kotlinlang.org/))
+  - [Kotlin](https://kotlinlang.org/)
   - [Fabric8 kubernetes client](https://github.com/fabric8io/kubernetes-client)
 
 # Links

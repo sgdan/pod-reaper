@@ -16,7 +16,7 @@ func maintainNamespaces(s state) {
 	tickers := map[string](chan bool){}
 
 	checkNamespaces(tickers, s) // don't wait for first tick
-	tick := time.Tick(7 * time.Second)
+	tick := time.Tick(s.Spec.NamespacesTick)
 	for {
 		select {
 		case <-tick:
@@ -48,7 +48,7 @@ func checkNamespaces(tickers map[string](chan bool), s state) {
 	// get the names of valid namespaces by removing the ignored ones
 	valid := []string{}
 	for _, next := range namespaces {
-		if !contains(s.ignoredNamespaces, next) {
+		if !contains(s.Spec.IgnoredNamespaces, next) {
 			valid = append(valid, next)
 		}
 	}
@@ -59,11 +59,19 @@ func checkNamespaces(tickers map[string](chan bool), s state) {
 			tickers[ns] = createTickerFor(ns, s)
 		}
 	}
+
+	// remove namespaces that have been deleted
+	// this will make sure it gets removed if the namespace ticker fails
+	for _, state := range <-s.getStates {
+		if !contains(valid, state.Name) {
+			s.rmNamespace <- state.Name
+		}
+	}
 }
 
 // Create a ticker to trigger updates for a particular namespace
 func createTickerFor(name string, s state) chan bool {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(s.Spec.NamespaceTick)
 	done := make(chan bool)
 	go func() {
 		for {

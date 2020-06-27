@@ -3,7 +3,7 @@ package main
 import "time"
 
 func maintainLimitRanges(s state) {
-	tick := time.Tick(60 * time.Second)
+	tick := time.Tick(s.Spec.RangerTick)
 	for {
 		select {
 		case <-tick:

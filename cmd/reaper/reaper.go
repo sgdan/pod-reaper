@@ -8,7 +8,7 @@ import (
 )
 
 func reap(s state) {
-	tick := time.Tick(21 * time.Second)
+	tick := time.Tick(s.Spec.ReaperTick)
 	for {
 		select {
 		case <-tick:

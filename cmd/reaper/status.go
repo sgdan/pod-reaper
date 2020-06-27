@@ -13,8 +13,8 @@ func maintainStatus(s state) {
 	configs := loadConfigs(s)
 	configsChanged := false
 	states := map[string]nsState{}
-	clockTick := time.Tick(7 * time.Second) // trigger clock updates
-	cfgTick := time.Tick(17 * time.Second)  // trigger config saves
+	clockTick := time.Tick(s.Spec.ClockTick) // trigger clock updates
+	cfgTick := time.Tick(s.Spec.ReaperTick)  // trigger config saves
 
 	for {
 		select {

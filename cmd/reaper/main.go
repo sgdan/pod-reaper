@@ -57,57 +57,77 @@ func main() {
 	go maintainLimitRanges(s)
 	go reap(s)
 
-	// serve latest cached JSON status to clients
-	http.HandleFunc("/reaper/status", func(w http.ResponseWriter, r *http.Request) {
-		if setHeaders(r.Method, spec, w, r) {
-			fmt.Fprint(w, <-s.getStatus)
-		}
-	})
-	http.HandleFunc("/reaper/setMemLimit", func(w http.ResponseWriter, r *http.Request) {
-		if setHeaders(r.Method, spec, w, r) {
-			decoder := json.NewDecoder(r.Body)
-			var lr limitRequest
-			err := decoder.Decode(&lr)
-			if err == nil {
-				cfg := s.getConfigFor(lr.Namespace)
-				cfg.Limit = lr.Limit
-				s.updateNsConfig <- cfg
-			} else {
-				log.Printf("Unable to set start hour: %v", err)
+	// Allow CORS for dev only
+	cors := func(wrapped http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if spec.CorsEnabled {
+				h := w.Header()
+				for _, origin := range spec.CorsOrigins {
+					h.Set("Access-Control-Allow-Origin", origin)
+				}
+				if r.Method == "OPTIONS" {
+					h.Set("Access-Control-Allow-Methods", "POST")
+					h.Set("Access-Control-Allow-Headers", "content-type")
+					return // no content for OPTIONS requests
+				}
 			}
+			wrapped(w, r)
+		}
+	}
+
+	// always return the status
+	status := func(wrapped http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			wrapped(w, r)
+			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, <-s.getStatus)
 		}
-	})
-	http.HandleFunc("/reaper/setStartHour", func(w http.ResponseWriter, r *http.Request) {
-		if setHeaders(r.Method, spec, w, r) {
-			decoder := json.NewDecoder(r.Body)
-			var sr startRequest
-			err := decoder.Decode(&sr)
-			if err == nil {
-				cfg := s.getConfigFor(sr.Namespace)
-				cfg.AutoStartHour = sr.StartHour
-				s.updateNsConfig <- cfg
-			} else {
-				log.Printf("Unable to set start hour: %v", err)
-			}
-			fmt.Fprint(w, <-s.getStatus)
+	}
+
+	// request processors, nothing required for a simple status request
+	doNothing := func(w http.ResponseWriter, r *http.Request) {}
+	memLimitProcessor := func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		var lr limitRequest
+		err := decoder.Decode(&lr)
+		if err != nil {
+			log.Printf("Unable to set mem limit: %v", err)
+			return
 		}
-	})
-	http.HandleFunc("/reaper/extend", func(w http.ResponseWriter, r *http.Request) {
-		if setHeaders(r.Method, spec, w, r) {
-			decoder := json.NewDecoder(r.Body)
-			var sr startRequest
-			err := decoder.Decode(&sr)
-			if err == nil {
-				cfg := s.getConfigFor(sr.Namespace)
-				cfg.LastStarted = time.Now().Unix() - 1
-				s.updateNsConfig <- cfg
-			} else {
-				log.Printf("Unable to extend namespace: %v", err)
-			}
-			fmt.Fprint(w, <-s.getStatus)
+		cfg := s.getConfigFor(lr.Namespace)
+		cfg.Limit = lr.Limit
+		s.updateNsConfig <- cfg
+	}
+	startHourProcessor := func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		var sr startRequest
+		err := decoder.Decode(&sr)
+		if err != nil {
+			log.Printf("Unable to set start hour: %v", err)
+			return
 		}
-	})
+		cfg := s.getConfigFor(sr.Namespace)
+		cfg.AutoStartHour = sr.StartHour
+		s.updateNsConfig <- cfg
+	}
+	extendProcessor := func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		var sr startRequest
+		err := decoder.Decode(&sr)
+		if err != nil {
+			log.Printf("Unable to extend namespace: %v", err)
+			return
+		}
+		cfg := s.getConfigFor(sr.Namespace)
+		cfg.LastStarted = time.Now().Unix() - 1
+		s.updateNsConfig <- cfg
+	}
+
+	// process requests and serve latest cached JSON status
+	http.HandleFunc("/reaper/status", cors(status(doNothing)))
+	http.HandleFunc("/reaper/setMemLimit", cors(status(memLimitProcessor)))
+	http.HandleFunc("/reaper/setStartHour", cors(status(startHourProcessor)))
+	http.HandleFunc("/reaper/extend", cors(status(extendProcessor)))
 
 	// serve the front end static files
 	if spec.StaticFiles != "" {
@@ -119,25 +139,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Exit: %v", err)
 	}
-}
-
-// Set headers based on CORS configuration
-// Return true if content can be returned (i.e. false for OPTIONS response)
-func setHeaders(method string, spec Specification, w http.ResponseWriter, r *http.Request) bool {
-	h := w.Header()
-	if spec.CorsEnabled {
-		for _, origin := range spec.CorsOrigins {
-			h.Set("Access-Control-Allow-Origin", origin)
-		}
-		if r.Method == "OPTIONS" {
-			h.Set("Access-Control-Allow-Methods", "POST")
-			h.Set("Access-Control-Allow-Headers", "content-type")
-			return false
-		}
-	} else {
-		h.Set("Content-Type", "application/json")
-	}
-	return true
 }
 
 // Use in-cluster config to connect to k8s api

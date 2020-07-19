@@ -42,9 +42,8 @@ func (o *k8s) getStatusOf(namespace string) (string, error) {
 }
 
 func (o *k8s) getConfigMap(name string) (*v1.ConfigMap, error) {
-	cm, err := o.clientset.CoreV1().ConfigMaps("podreaper").
+	return o.clientset.CoreV1().ConfigMaps("podreaper").
 		Get(name, metav1.GetOptions{})
-	return cm, err
 }
 
 func (o *k8s) getSettings() ([]nsConfig, error) {
@@ -52,8 +51,7 @@ func (o *k8s) getSettings() ([]nsConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	result, err := fromJSON(cm.Data["config"])
-	return result, err
+	return fromJSON(cm.Data["config"])
 }
 
 func (o *k8s) saveSettings(data []nsConfig) error {
@@ -65,9 +63,10 @@ func (o *k8s) saveSettings(data []nsConfig) error {
 		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
 		Data:       map[string]string{"config": jsonData},
 	}
-	_, err = o.clientset.CoreV1().ConfigMaps("podreaper").Update(cm)
+	cms := o.clientset.CoreV1().ConfigMaps("podreaper")
+	_, err = cms.Update(cm)
 	if err != nil {
-		_, err := o.clientset.CoreV1().ConfigMaps("podreaper").Create(cm)
+		_, err := cms.Create(cm)
 		return err
 	}
 	return nil
@@ -108,10 +107,7 @@ func (o *k8s) getResourceQuota(ns string, rqName string) (*v1.ResourceQuota, err
 
 func (o *k8s) hasResourceQuota(ns string, rqName string) bool {
 	_, err := o.getResourceQuota(ns, rqName)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity) (*v1.ResourceQuota, error) {
@@ -124,14 +120,10 @@ func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity
 		},
 	}
 	rqs := o.clientset.CoreV1().ResourceQuotas(ns)
-	var result *v1.ResourceQuota
-	var err error
 	if o.hasResourceQuota(ns, rqName) {
-		result, err = rqs.Update(rq)
-	} else {
-		result, err = rqs.Create(rq)
+		return rqs.Update(rq)
 	}
-	return result, err
+	return rqs.Create(rq)
 }
 
 func (o *k8s) removeResourceQuota(ns string, rqName string) error {

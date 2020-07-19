@@ -35,7 +35,7 @@ frontend-dev:
 backend-dev:
 	go mod tidy
 	go mod download
-	go build -o reaper ./cmd/reaper
+	go build -race -o reaper ./cmd/reaper
 	CORS_ENABLED=true ./reaper
 
 
@@ -44,10 +44,11 @@ frontend-test:
 	cd frontend && elm-test
 
 # assumes golang is installed locally
+# need vet=off workaround for windows, https://github.com/golang/go/issues/27089
 backend-test:
 	go mod tidy
 	go mod download
-	go test -v ./cmd/reaper
+	go test -race -vet=off -v ./cmd/reaper
 
 
 # gradle shell for back end

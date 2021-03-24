@@ -140,6 +140,14 @@ encodeStart namespace value =
     E.object [ ( "namespace", E.string namespace ), ( "startHour", start ) ]
 
 
+restart : String -> Cmd Msg
+restart url =
+    Http.post
+        { url = url ++ "restart"
+        , body = E.object []|> Http.jsonBody
+        , expect = Http.expectString GotUpdate
+        }
+
 setStart : String -> String -> Maybe Int -> Cmd Msg
 setStart url namespace value =
     Http.post
@@ -172,6 +180,7 @@ type Msg
     | SetLimit String Int
     | EditStart (Maybe String)
     | SetStart String (Maybe Int)
+    | Restart 
 
 
 toString : Http.Error -> String
@@ -226,6 +235,9 @@ update msg model =
 
         SetStart namespace start ->
             ( model, setStart model.url namespace start )
+
+        Restart ->
+            ( model, restart model.url)
 
 
 
@@ -502,8 +514,12 @@ title : String -> Element Msg
 title clock =
     row [ width fill ]
         [ el [ Font.size 40 ] <| text "Pod Reaper"
-        , el [ Font.size 14, Font.alignRight, width (fill |> maximum 610) ] <|
-            text clock
+        , --el [ Font.size 14, Font.alignRight, width (fill |> maximum 610) ] <|
+          --text clock
+          row [ alignRight]
+            [ Input.button[ padding 20] { label = text "Restart Podreaper", onPress = Just Restart }
+            , text clock
+            ]
         ]
 
 

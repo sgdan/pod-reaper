@@ -86,6 +86,12 @@ func main() {
 
 	// request processors, nothing required for a simple status request
 	doNothing := func(w http.ResponseWriter, r *http.Request) {}
+
+	restart := func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Restarting podreaper based on user input. Goodbye")
+		os.Exit(0)
+	}
+
 	memLimitProcessor := func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var lr limitRequest
@@ -128,6 +134,7 @@ func main() {
 	http.HandleFunc("/reaper/setMemLimit", cors(status(memLimitProcessor)))
 	http.HandleFunc("/reaper/setStartHour", cors(status(startHourProcessor)))
 	http.HandleFunc("/reaper/extend", cors(status(extendProcessor)))
+	http.HandleFunc("/reaper/restart", cors(status(restart)))
 
 	// serve the front end static files
 	if spec.StaticFiles != "" {

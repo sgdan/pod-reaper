@@ -74,9 +74,9 @@ spec:
       serviceAccountName: podreaper
       containers:
         - name: podreaper
-          #image: sgdan/pod-reaper:latest
+          image: sgdan/pod-reaper:latest
           # for locally built image
-          image: podreaper:latest
+          # image: podreaper:latest
           imagePullPolicy: Never
           env:
             - name: ZONE_ID

@@ -77,7 +77,7 @@ spec:
           image: sgdan/pod-reaper:latest
           # for locally built image
           # image: podreaper:latest
-          imagePullPolicy: Never
+          # imagePullPolicy: Never
           env:
             - name: ZONE_ID
               value: UTC

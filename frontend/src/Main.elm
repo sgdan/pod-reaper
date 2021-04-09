@@ -514,12 +514,9 @@ title : String -> Element Msg
 title clock =
     row [ width fill ]
         [ el [ Font.size 40 ] <| text "Pod Reaper"
-        , --el [ Font.size 14, Font.alignRight, width (fill |> maximum 610) ] <|
-            --text clock
-            row [ alignRight]
-            [ Input.button[ padding 20] { label = text "Restart Podreaper", onPress = Just Restart }
-            , text clock
-            ]
+        , row [ alignRight]
+            [ Input.button[ padding 20] { label = text "Restart Podreaper", onPress = Just Restart }]
+        , text clock 
         ]
 
 

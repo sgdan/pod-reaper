@@ -88,7 +88,7 @@ func main() {
 	doNothing := func(w http.ResponseWriter, r *http.Request) {}
 
 	restart := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Restarting podreaper based on user input. Goodbye")
+		log.Printf("Restarting")
 		os.Exit(0)
 	}
 

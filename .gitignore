@@ -4,6 +4,8 @@ elm-stuff
 repl-temp-*
 node_modules
 .DS_Store
+.parcel-cache
+dist
 
 # Back end and build stuff
 .build

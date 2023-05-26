@@ -1,13 +1,13 @@
 # Build the Pod Reaper app in stages
 
 # Front end: Elm
-FROM node:14.4.0 as frontend
-RUN yarn global add create-elm-app@4.2.24
+FROM node:20.2.0 as frontend
 WORKDIR /app
+RUN npm i --save-dev parcel@2.9.0 @parcel/transformer-elm@2.9.0
 COPY frontend/elm.json .
-COPY frontend/public public/
 COPY frontend/src src/
-RUN ELM_APP_URL=/reaper/ elm-app build
+RUN echo ELM_APP_URL="/reaper/" > .env
+RUN npx parcel build src/index.html
 
 # Back end: Golang
 FROM golang:1.14.4-alpine as backend
@@ -22,7 +22,7 @@ RUN go build -o reaper ./cmd/reaper
 FROM alpine:3.12.0
 RUN apk add --no-cache tzdata
 WORKDIR /podreaper
-COPY --from=frontend /app/build ./ui
+COPY --from=frontend /app/dist ./ui
 COPY --from=backend /go/src/reaper ./reaper
 ENV CORS_ENABLED false
 ENV STATIC_FILES ./ui

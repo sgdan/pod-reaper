@@ -28,7 +28,7 @@ events:
 # for local development, start front and back end separately
 # Front end will run at http://localhost:3000
 frontend-dev:
-	cd frontend && elm-app start
+	cd frontend && npx parcel --port 3000 src/index.html
 
 # Back end runs on localhost:8080, need CORS so dev front end can connect
 # Assumes you have golang tools installed

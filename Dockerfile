@@ -10,7 +10,7 @@ RUN echo ELM_APP_URL="/reaper/" > .env
 RUN npx parcel build src/index.html
 
 # Back end: Golang
-FROM golang:1.14.4-alpine as backend
+FROM golang:1.20.4-alpine as backend
 WORKDIR /go/src
 COPY go.mod .
 COPY go.sum .
@@ -19,7 +19,7 @@ COPY cmd ./cmd
 RUN go build -o reaper ./cmd/reaper
 
 # Final image: Alpine
-FROM alpine:3.12.0
+FROM alpine:3.18.0
 RUN apk add --no-cache tzdata
 WORKDIR /podreaper
 COPY --from=frontend /app/dist ./ui

@@ -18,7 +18,6 @@ import (
 )
 
 const timeFormat = "15:04 MST"
-const namespaceInterval = 5 // target interval between namespace updates
 const quotaName = "reaper-quota"
 const downQuotaName = "reaper-down-quota"
 const bytesInGi = 1024 * 1024 * 1024

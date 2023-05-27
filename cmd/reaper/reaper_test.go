@@ -111,7 +111,7 @@ func TestResourceQuotas(t *testing.T) {
 		t.Fatalf("Should be able to get resource quota: %v", err)
 	}
 	limit := rq.Spec.Hard.Memory().Format
-	if "2Gi" != limit {
+	if limit != "2Gi" {
 		t.Fatalf("Expected 2Gi limit but was %v", limit)
 	}
 
@@ -125,7 +125,7 @@ func TestResourceQuotas(t *testing.T) {
 		t.Fatalf("Should be able to get resource quota: %v", err)
 	}
 	limit = rq.Spec.Hard.Memory().Format
-	if "5Gi" != limit {
+	if limit != "5Gi" {
 		t.Fatalf("Expected 5Gi limit but was %v", limit)
 	}
 

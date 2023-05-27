@@ -16,14 +16,6 @@ type k8s struct {
 	clientset kubernetes.Interface
 }
 
-func (o *k8s) getVersion() (string, error) {
-	version, err := o.clientset.Discovery().ServerVersion()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s", version), nil
-}
-
 func (o *k8s) createNamespace(name string) {
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
 	o.clientset.CoreV1().Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
@@ -58,7 +50,7 @@ func (o *k8s) getSettings() ([]nsConfig, error) {
 func (o *k8s) saveSettings(data []nsConfig) error {
 	jsonData, err := toJSON(data)
 	if err != nil {
-		return fmt.Errorf("Unable to convert settings to JSON: %v", err)
+		return fmt.Errorf("unable to convert settings to JSON: %v", err)
 	}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
@@ -92,7 +84,7 @@ func (o *k8s) deletePods(namespace string) error {
 func (o *k8s) getNamespaces() ([]string, error) {
 	nsList, err := o.clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list namepsaces: %v", err)
+		return nil, fmt.Errorf("unable to list namepsaces: %v", err)
 	}
 	items := nsList.Items
 	result := make([]string, len(items))

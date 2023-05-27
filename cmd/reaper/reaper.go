@@ -9,36 +9,33 @@ import (
 
 func reap(s state) {
 	tick := time.Tick(s.Spec.ReaperTick)
-	for {
-		select {
-		case <-tick:
-			cfgs := s.configMap()
-			for _, state := range <-s.getStates {
-				ns := state.Name
-				cfg := cfgs[ns]
-				started := max(state.LastScheduled, cfg.LastStarted)
+	for range tick {
+		cfgs := s.configMap()
+		for _, state := range <-s.getStates {
+			ns := state.Name
+			cfg := cfgs[ns]
+			started := max(state.LastScheduled, cfg.LastStarted)
 
-				// update lastStarted for scheduled starts
-				if started > cfg.LastStarted {
-					cfg.LastStarted = started
-					s.updateNsConfig <- cfg
-				}
+			// update lastStarted for scheduled starts
+			if started > cfg.LastStarted {
+				cfg.LastStarted = started
+				s.updateNsConfig <- cfg
+			}
 
-				// change up/down state
-				shouldRun := hoursFrom(started, time.Now().Unix()) < window
-				if !state.HasDownQuota && !shouldRun {
-					bringDown(ns, s)
-				}
-				if state.HasDownQuota && shouldRun {
-					bringUp(ns, s)
-				}
+			// change up/down state
+			shouldRun := hoursFrom(started, time.Now().Unix()) < window
+			if !state.HasDownQuota && !shouldRun {
+				bringDown(ns, s)
+			}
+			if state.HasDownQuota && shouldRun {
+				bringUp(ns, s)
+			}
 
-				// kill any pods that are running
-				if !shouldRun {
-					err := s.cluster.deletePods(ns)
-					if err != nil {
-						log.Printf("Unable to delete pods in %v: %v", ns, err)
-					}
+			// kill any pods that are running
+			if !shouldRun {
+				err := s.cluster.deletePods(ns)
+				if err != nil {
+					log.Printf("Unable to delete pods in %v: %v", ns, err)
 				}
 			}
 		}

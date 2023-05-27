@@ -93,9 +93,9 @@ func updateNamespace(name string, s state) error {
 		return err
 	}
 	if status != "Active" {
-		return fmt.Errorf("Namespace %v is %v", name, status)
+		return fmt.Errorf("namespace %v is %v", name, status)
 	}
-	rq, err := checkQuota(name, s)
+	rq, _ := checkQuota(name, s)
 	updated, err := loadNamespace(name, rq, s)
 	if err == nil {
 		s.updateNsState <- updated

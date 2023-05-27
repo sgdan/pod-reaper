@@ -28,7 +28,7 @@ events:
 # for local development, start front and back end separately
 # Front end will run at http://localhost:3000
 frontend-dev:
-	cd frontend && elm-app start
+	cd frontend && npx parcel --port 3000 src/index.html
 
 # Back end runs on localhost:8080, need CORS so dev front end can connect
 # Assumes you have golang tools installed
@@ -41,7 +41,7 @@ backend-dev:
 
 # unit testing
 frontend-test:
-	cd frontend && elm-test
+	cd frontend && npx elm-test
 
 # assumes golang is installed locally
 # need vet=off workaround for windows, https://github.com/golang/go/issues/27089

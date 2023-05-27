@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,16 +26,16 @@ func (o *k8s) getVersion() (string, error) {
 
 func (o *k8s) createNamespace(name string) {
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
-	o.clientset.CoreV1().Namespaces().Create(nsSpec)
+	o.clientset.CoreV1().Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
 }
 
 func (o *k8s) getExists(namespace string) bool {
-	_, err := o.clientset.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	_, err := o.clientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	return err == nil
 }
 
 func (o *k8s) getStatusOf(namespace string) (string, error) {
-	ns, err := o.clientset.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	ns, err := o.clientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +44,7 @@ func (o *k8s) getStatusOf(namespace string) (string, error) {
 
 func (o *k8s) getConfigMap(name string) (*v1.ConfigMap, error) {
 	return o.clientset.CoreV1().ConfigMaps("podreaper").
-		Get(name, metav1.GetOptions{})
+		Get(context.Background(), name, metav1.GetOptions{})
 }
 
 func (o *k8s) getSettings() ([]nsConfig, error) {
@@ -64,9 +65,9 @@ func (o *k8s) saveSettings(data []nsConfig) error {
 		Data:       map[string]string{"config": jsonData},
 	}
 	cms := o.clientset.CoreV1().ConfigMaps("podreaper")
-	_, err = cms.Update(cm)
+	_, err = cms.Update(context.Background(), cm, metav1.UpdateOptions{})
 	if err != nil {
-		_, err := cms.Create(cm)
+		_, err := cms.Create(context.Background(), cm, metav1.CreateOptions{})
 		return err
 	}
 	return nil
@@ -84,12 +85,12 @@ func fromJSON(data string) ([]nsConfig, error) {
 }
 
 func (o *k8s) deletePods(namespace string) error {
-	return o.clientset.CoreV1().Pods(namespace).DeleteCollection(
-		&metav1.DeleteOptions{}, metav1.ListOptions{})
+	return o.clientset.CoreV1().Pods(namespace).DeleteCollection(context.Background(),
+		metav1.DeleteOptions{}, metav1.ListOptions{})
 }
 
 func (o *k8s) getNamespaces() ([]string, error) {
-	nsList, err := o.clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	nsList, err := o.clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Unable to list namepsaces: %v", err)
 	}
@@ -102,7 +103,7 @@ func (o *k8s) getNamespaces() ([]string, error) {
 }
 
 func (o *k8s) getResourceQuota(ns string, rqName string) (*v1.ResourceQuota, error) {
-	return o.clientset.CoreV1().ResourceQuotas(ns).Get(rqName, metav1.GetOptions{})
+	return o.clientset.CoreV1().ResourceQuotas(ns).Get(context.Background(), rqName, metav1.GetOptions{})
 }
 
 func (o *k8s) hasResourceQuota(ns string, rqName string) bool {
@@ -121,13 +122,13 @@ func (o *k8s) setResourceQuota(ns string, rqName string, limit resource.Quantity
 	}
 	rqs := o.clientset.CoreV1().ResourceQuotas(ns)
 	if o.hasResourceQuota(ns, rqName) {
-		return rqs.Update(rq)
+		return rqs.Update(context.Background(), rq, metav1.UpdateOptions{})
 	}
-	return rqs.Create(rq)
+	return rqs.Create(context.Background(), rq, metav1.CreateOptions{})
 }
 
 func (o *k8s) removeResourceQuota(ns string, rqName string) error {
-	return o.clientset.CoreV1().ResourceQuotas(ns).Delete(rqName, &metav1.DeleteOptions{})
+	return o.clientset.CoreV1().ResourceQuotas(ns).Delete(context.Background(), rqName, metav1.DeleteOptions{})
 }
 
 // Create default limit range for namespace if it doesn't exist
@@ -153,9 +154,9 @@ func (o *k8s) checkLimitRange(ns string) {
 		},
 	}
 	lrs := o.clientset.CoreV1().LimitRanges(ns)
-	_, err = lrs.Get(limitRangeName, metav1.GetOptions{})
+	_, err = lrs.Get(context.Background(), limitRangeName, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("Creating default limit range for %v", ns)
-		lrs.Create(lr)
+		lrs.Create(context.Background(), lr, metav1.CreateOptions{})
 	}
 }

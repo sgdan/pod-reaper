@@ -1,15 +1,8 @@
-# Front end stuff (from create-elm-app)
-build
+# Front end stuff
 elm-stuff
-repl-temp-*
 node_modules
-.DS_Store
+.parcel-cache
+dist
 
 # Back end and build stuff
-.build
-.gradle
-gradle
-gradlew
-gradlew.bat
-.idea
-reaper
+/reaper

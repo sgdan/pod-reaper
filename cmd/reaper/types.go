@@ -5,26 +5,23 @@ import "time"
 /*
 Specification contains default configuration for this app
 that can be overridden using environment variables.
-See https://github.com/kelseyhightower/envconfig
-
-Overriding env values for backwards compatibility with the
-previous Kotlin/Micronaut code.
+See https://github.com/sethvargo/go-envconfig
 */
 type Specification struct {
-	IgnoredNamespaces []string `default:"kube-system,kube-public,kube-node-lease,podreaper,docker" envconfig:"ignored_namespaces"`
-	ZoneID            string   `default:"UTC" envconfig:"zone_id"`
-	CorsEnabled       bool     `default:"false" envconfig:"cors_enabled"`
-	CorsOrigins       []string `default:"http://localhost:3000" envconfig:"cors_origins"`
-	InCluster         bool     `default:"false" envconfig:"in_cluster"`
-	StaticFiles       string   `default:"" envconfig:"static_files"`
+	IgnoredNamespaces []string `env:"IGNORED_NAMESPACES,default=kube-system,kube-public,kube-node-lease,podreaper,docker"`
+	ZoneID            string   `env:"ZONE_ID,default=UTC"`
+	CorsEnabled       bool     `env:"CORS_ENABLED,default=false"`
+	CorsOrigins       []string `env:"CORS_ORIGINS,default=http://localhost:3000"`
+	InCluster         bool     `env:"IN_CLUSTER,default=false"`
+	StaticFiles       string   `env:"STATIC_FILES,default="`
 
 	// timings
-	NamespaceTick  time.Duration `default:"11s" envconfig:"namespace_tick"`
-	NamespacesTick time.Duration `default:"17s" envconfig:"namespaces_tick"`
-	RangerTick     time.Duration `default:"41s" envconfig:"ranger_tick"`
-	ClockTick      time.Duration `default:"13s" envconfig:"clock_tick"`
-	ConfigTick     time.Duration `default:"17s" envconfig:"config_tick"`
-	ReaperTick     time.Duration `default:"29s" envconfig:"reaper_tick"`
+	NamespaceTick  time.Duration `env:"NAMESPACE_TICK,default=11s"`
+	NamespacesTick time.Duration `env:"NAMESPACES_TICK,default=17s"`
+	RangerTick     time.Duration `env:"RANGER_TICK,default=41s"`
+	ClockTick      time.Duration `env:"CLOCK_TICK,default=13s"`
+	ConfigTick     time.Duration `env:"CONFIG_TICK,default=17s"`
+	ReaperTick     time.Duration `env:"REAPER_TICK,default=29s"`
 }
 
 // This is the status displayed by the UI

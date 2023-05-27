@@ -5,4 +5,4 @@ node_modules
 dist
 
 # Back end and build stuff
-reaper
+/reaper

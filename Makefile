@@ -41,7 +41,7 @@ backend-dev:
 
 # unit testing
 frontend-test:
-	cd frontend && elm-test
+	cd frontend && npx elm-test
 
 # assumes golang is installed locally
 # need vet=off workaround for windows, https://github.com/golang/go/issues/27089

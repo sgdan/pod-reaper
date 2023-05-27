@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
+	"github.com/sethvargo/go-envconfig"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -30,9 +31,9 @@ const configMapName = "podreaper-goconfig"
 
 func main() {
 	// load the configuration
+	ctx := context.Background()
 	var spec Specification
-	err := envconfig.Process("reaper", &spec)
-	if err != nil {
+	if err := envconfig.Process(ctx, &spec); err != nil {
 		log.Fatalf("Can't load environment vars: %v", err)
 	}
 	log.Printf("Zone ID: %v", spec.ZoneID)

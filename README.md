@@ -60,12 +60,11 @@ kubectl port-forward deployment/podreaper 8080:8080 -n podreaper
 
 ## Development
 
-Assumes frontend tools have already been installed locally e.g.
+Install front end modules
 
 ```bash
-yarn global add create-elm-app
-yarn global add elm-test
-yarn global add elm
+cd frontend
+npm install
 ```
 
 Note: In order to use the kubernetes backend you must have a working cluster
@@ -80,13 +79,9 @@ and kubeconfig defined.
 For front end unit tests run `make frontend-test`.
 
 - Front end is written in [Elm](https://elm-lang.org/)
-- Using [Create Elm App](https://github.com/halfzebra/create-elm-app)
 - Icon generated with [https://favicon.io/favicon-generator/](https://favicon.io/favicon-generator/)
 - Back end written in [Golang](https://golang.org/) and uses:
   - [client-go](https://github.com/kubernetes/client-go) go client for k8s
-- Note: Original backend was based on [Micronaut](https://micronaut.io/) and used:
-  - [Kotlin](https://kotlinlang.org/)
-  - [Fabric8 kubernetes client](https://github.com/fabric8io/kubernetes-client)
 
 # Links
 
